@@ -3,6 +3,7 @@
   "version": "1.0.0-dev.0",
   "stage": "experimental",
   "slug": "fireboard2mqtt",
+  "url": "https://github.com/gordlea/fireboard2mqtt",
   "description": "A bridge that connects the fireboard cloud api to mqtt (compatible with home assistant matt discovery).",
   "arch": [
     "armhf",
