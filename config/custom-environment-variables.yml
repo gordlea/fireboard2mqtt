@@ -1,0 +1,15 @@
+mqtt:
+  url: FB2MQTT_MQTT_URL
+  clientOptions:
+    reconnectPeriod: FB2MQTT_MQTT_RECONNECT_PERIOD
+    protocolVersion: FB2MQTT_MQTT_PROTOCOL_VERSION
+    username: FB2MQTT_MQTT_USERNAME
+    password: FB2MQTT_MQTT_PASSWORD
+  discoveryTopic: FB2MQTT_MQTT_DISCOVERY_TOPIC
+  baseTopic: FB2MQTT_MQTT_BASE_TOPIC
+  clientIdPrefix: FB2MQTT_MQTT_CLIENTID_PREFIX
+loglevel: FB2MQTT_LOGLEVEL
+
+fireboard:
+    accountEmail: FB2MQTT_FB_ACCOUNT_EMAIL
+    accountPassword: FB2MQTT_FB_ACCOUNT_PASSWORD

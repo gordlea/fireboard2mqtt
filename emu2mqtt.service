@@ -1,0 +1,17 @@
+# example systemd service
+[Unit]
+Description=fireboard2mqtt
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/yarn node ./cli.js
+WorkingDirectory=/opt/fireboard2mqtt
+# StandardOutput=null
+# Or use StandardOutput=null if you don't want Zigbee2MQTT messages filling syslog, for more options see systemd.exec(5)
+StandardError=inherit
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
+
