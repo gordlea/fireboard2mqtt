@@ -1,6 +1,6 @@
 {
   "name": "Fireboard 2 MQTT",
-  "version": "1.0.0-dev.0",
+  "version": "1.0.0-dev.1",
   "stage": "experimental",
   "slug": "fireboard2mqtt",
   "url": "https://github.com/gordlea/fireboard2mqtt",
