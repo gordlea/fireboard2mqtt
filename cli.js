@@ -1,5 +1,3 @@
-
-// require('events').EventEmitter.prototype._maxListeners = 100;
 const lumbermill = require('@lumbermill/node').setGlobalOpts({
     hideContext: true,
 })
@@ -10,7 +8,6 @@ const Controller = require('./lib/Controller');
 
 const logger = lumbermill('fireboard2mqtt:cli');
 
-// const emu2 = new Emu2();
 const mqtt = new MqttClient();
 const fireboardApiClient = new FireboardApiClient({
     username: cfg.fireboardAccountEmail,
