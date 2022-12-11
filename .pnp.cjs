@@ -1929,7 +1929,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [\
             ["commist", "npm:1.1.0"],\
             ["leven", "npm:2.1.0"],\
-            ["minimist", "npm:1.2.5"]\
+            ["minimist", "npm:1.2.7"]\
           ],\
           "linkType": "HARD"\
         }]\
@@ -3644,7 +3644,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./.yarn/cache/json5-npm-2.2.0-da49dc7cb5-e88fc5274b.zip/node_modules/json5/",\
           "packageDependencies": [\
             ["json5", "npm:2.2.0"],\
-            ["minimist", "npm:1.2.5"]\
+            ["minimist", "npm:1.2.7"]\
           ],\
           "linkType": "HARD"\
         }],\
@@ -3833,10 +3833,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["minimist", [\
-        ["npm:1.2.5", {\
-          "packageLocation": "./.yarn/cache/minimist-npm-1.2.5-ced0e1f617-86706ce5b3.zip/node_modules/minimist/",\
+        ["npm:1.2.7", {\
+          "packageLocation": "./.yarn/cache/minimist-npm-1.2.7-51d33b1371-7346574a10.zip/node_modules/minimist/",\
           "packageDependencies": [\
-            ["minimist", "npm:1.2.5"]\
+            ["minimist", "npm:1.2.7"]\
           ],\
           "linkType": "HARD"\
         }]\
@@ -3936,7 +3936,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["help-me", "npm:3.0.0"],\
             ["inherits", "npm:2.0.4"],\
             ["lru-cache", "npm:6.0.0"],\
-            ["minimist", "npm:1.2.5"],\
+            ["minimist", "npm:1.2.7"],\
             ["mqtt-packet", "npm:6.10.0"],\
             ["number-allocator", "npm:1.0.12"],\
             ["pump", "npm:3.0.0"],\
