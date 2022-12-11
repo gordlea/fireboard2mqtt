@@ -14,7 +14,7 @@
     "ip-address": "^8.1.0",
     "luxon": "^3.1.1",
     "mqtt": "^4.3.7",
-    "node-fetch": "^2.6.6"
+    "node-fetch": "^2.6.7"
   },
   "packageManager": "yarn@3.3.0",
   "devDependencies": {

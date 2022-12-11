@@ -983,20 +983,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"async@npm:^1.5.2":
-  version: 1.5.2
-  resolution: "async@npm:1.5.2"
-  checksum: fe5d6214d8f15bd51eee5ae8ec5079b228b86d2d595f47b16369dec2e11b3ff75a567bb5f70d12d79006665fbbb7ee0a7ec0e388524eefd454ecbe651c124ebd
-  languageName: node
-  linkType: hard
-
-"async@npm:^3.2.0":
-  version: 3.2.4
-  resolution: "async@npm:3.2.4"
-  checksum: 43d07459a4e1d09b84a20772414aa684ff4de085cbcaec6eea3c7a8f8150e8c62aa6cd4e699fe8ee93c3a5b324e777d34642531875a0817a35697522c1b02e89
-  languageName: node
-  linkType: hard
-
 "asynckit@npm:^0.4.0":
   version: 0.4.0
   resolution: "asynckit@npm:0.4.0"
@@ -1362,15 +1348,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"commander@npm:2.9.0":
-  version: 2.9.0
-  resolution: "commander@npm:2.9.0"
-  dependencies:
-    graceful-readlink: ">= 1.0.0"
-  checksum: 37939b6866ae190784fa946ea5b926dfe713731064c746e818642ac59e28f513b54e88e35d8c34b4d24d063cb465977dca2efd2ec974f91e495c743fcb2ae7a2
-  languageName: node
-  linkType: hard
-
 "commist@npm:^1.0.0":
   version: 1.1.0
   resolution: "commist@npm:1.1.0"
@@ -1486,15 +1463,6 @@ __metadata:
     supports-color:
       optional: true
   checksum: 820ea160e267e23c953c9ed87e7ad93494d8cda2f7349af5e7e3bb236d23707ee3022f477d5a7d2ee86ef2bf7d60aa9ab22d1f58080d7deb9dccd073585e1e43
-  languageName: node
-  linkType: hard
-
-"debug@npm:^3.2.6":
-  version: 3.2.7
-  resolution: "debug@npm:3.2.7"
-  dependencies:
-    ms: ^2.1.1
-  checksum: b3d8c5940799914d30314b7c3304a43305fd0715581a919dacb8b3176d024a782062368405b47491516d2091d6462d4d11f2f4974a405048094f8bfebfa3071c
   languageName: node
   linkType: hard
 
@@ -1798,13 +1766,11 @@ __metadata:
     "@lumbermill/node": 1.0.1-beta.1
     arpping: ^4.0.0
     config: ^3.3.8
-    icmp: ^2.0.1
     ip-address: ^8.1.0
     jest: ^27.3.1
     luxon: ^3.1.1
     mqtt: ^4.3.7
-    network: ^0.6.1
-    node-fetch: ^2.6.6
+    node-fetch: ^2.6.7
   languageName: unknown
   linkType: soft
 
@@ -1954,13 +1920,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"graceful-readlink@npm:>= 1.0.0":
-  version: 1.0.1
-  resolution: "graceful-readlink@npm:1.0.1"
-  checksum: 4c1889ca0a6fc0bb9585b55c26a99719be132cbc4b7d84036193b70608059b9783e52e2a866d5a8e39821b16a69e899644ca75c6206563f1319b6720836b9ab2
-  languageName: node
-  linkType: hard
-
 "has-flag@npm:^3.0.0":
   version: 3.0.0
   resolution: "has-flag@npm:3.0.0"
@@ -2061,15 +2020,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"icmp@npm:^2.0.1":
-  version: 2.0.1
-  resolution: "icmp@npm:2.0.1"
-  dependencies:
-    raw-socket: ^1.7.0
-  checksum: d7c003449dc04d7454c6ce02db67879b5063e0e94bad0c816df58ea998812390f24e2ec60f9f959db101229932a8247d26be8b91aaa2dbbfbf2915ece1898031
-  languageName: node
-  linkType: hard
-
 "iconv-lite@npm:0.4.24":
   version: 0.4.24
   resolution: "iconv-lite@npm:0.4.24"
@@ -2079,16 +2029,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"iconv-lite@npm:^0.5.0":
-  version: 0.5.2
-  resolution: "iconv-lite@npm:0.5.2"
-  dependencies:
-    safer-buffer: ">= 2.1.2 < 3"
-  checksum: aa184914b74db7a23feb98cad3e4ed22058f2aa27c5613a127327423b3230a0b934665c2aecf5dc657a58a59891c92fd1e721ed160d1b2f3c682bc26e3fe3f14
-  languageName: node
-  linkType: hard
-
-"iconv-lite@npm:^0.6.2, iconv-lite@npm:^0.6.3":
+"iconv-lite@npm:^0.6.2":
   version: 0.6.3
   resolution: "iconv-lite@npm:0.6.3"
   dependencies:
@@ -3216,19 +3157,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ms@npm:^2.0.0, ms@npm:^2.1.1":
+"ms@npm:^2.0.0":
   version: 2.1.3
   resolution: "ms@npm:2.1.3"
   checksum: aa92de608021b242401676e35cfa5aa42dd70cbdc082b916da7fb925c542173e36bce97ea3e804923fe92c0ad991434e4a38327e15a1b5b5f945d66df615ae6d
-  languageName: node
-  linkType: hard
-
-"nan@npm:2.14.*":
-  version: 2.14.2
-  resolution: "nan@npm:2.14.2"
-  dependencies:
-    node-gyp: latest
-  checksum: 7a269139b66a7d37470effb7fb36a8de8cc3b5ffba6e40bb8e0545307911fe5ebf94797ec62f655ecde79c237d169899f8bd28256c66a32cbc8284faaf94c3f4
   languageName: node
   linkType: hard
 
@@ -3239,19 +3171,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"needle@npm:^3.0.0":
-  version: 3.2.0
-  resolution: "needle@npm:3.2.0"
-  dependencies:
-    debug: ^3.2.6
-    iconv-lite: ^0.6.3
-    sax: ^1.2.4
-  bin:
-    needle: bin/needle
-  checksum: d6f3e8668bbaf943d28ced0ad843eff793b56025e80152e511fd02313b8974e4dd9674bcbe3d8f9aa31882adb190dafe29ea5fce03a92b4724adf4850070bcfc
-  languageName: node
-  linkType: hard
-
 "netmask@npm:^2.0.1":
   version: 2.0.2
   resolution: "netmask@npm:2.0.2"
@@ -3259,21 +3178,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"network@npm:^0.6.1":
-  version: 0.6.1
-  resolution: "network@npm:0.6.1"
-  dependencies:
-    async: ^1.5.2
-    commander: 2.9.0
-    needle: ^3.0.0
-    wmic: ^1.0.1
-  bin:
-    network: bin/network
-  checksum: 488747a5188e93813065fe8c04269b228ad5781d5d9ba61f1f9338bf16d8d7618afe8c0a487d583435eb34434f2b38010f95c4f780cea0f81a7434c80d3d08ab
-  languageName: node
-  linkType: hard
-
-"node-fetch@npm:^2.6.6":
+"node-fetch@npm:^2.6.7":
   version: 2.6.7
   resolution: "node-fetch@npm:2.6.7"
   dependencies:
@@ -3615,16 +3520,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"raw-socket@npm:^1.7.0":
-  version: 1.7.0
-  resolution: "raw-socket@npm:1.7.0"
-  dependencies:
-    nan: 2.14.*
-    node-gyp: latest
-  checksum: 1f244662898624a84d7f9a48c4358b50bfbd22676cbdf3d206f4db58c7ff3f431ffe91920a6417bef798f0e119b8947734671002fd200c21fa683a922e1f1c37
-  languageName: node
-  linkType: hard
-
 "react-is@npm:^17.0.1":
   version: 17.0.2
   resolution: "react-is@npm:17.0.2"
@@ -3758,13 +3653,6 @@ __metadata:
   version: 2.1.2
   resolution: "safer-buffer@npm:2.1.2"
   checksum: cab8f25ae6f1434abee8d80023d7e72b598cf1327164ddab31003c51215526801e40b66c5e65d658a0af1e9d6478cadcb4c745f4bd6751f97d8644786c0978b0
-  languageName: node
-  linkType: hard
-
-"sax@npm:^1.2.4":
-  version: 1.2.4
-  resolution: "sax@npm:1.2.4"
-  checksum: d3df7d32b897a2c2f28e941f732c71ba90e27c24f62ee918bd4d9a8cfb3553f2f81e5493c7f0be94a11c1911b643a9108f231dd6f60df3fa9586b5d2e3e9e1fe
   languageName: node
   linkType: hard
 
@@ -4376,16 +4264,6 @@ __metadata:
   dependencies:
     string-width: ^1.0.2 || 2
   checksum: d09c8012652a9e6cab3e82338d1874a4d7db2ad1bd19ab43eb744acf0b9b5632ec406bdbbbb970a8f4771a7d5ef49824d038ba70aa884e7723f5b090ab87134d
-  languageName: node
-  linkType: hard
-
-"wmic@npm:^1.0.1":
-  version: 1.1.1
-  resolution: "wmic@npm:1.1.1"
-  dependencies:
-    async: ^3.2.0
-    iconv-lite: ^0.5.0
-  checksum: 58a8db1cd601a5b82cb7e045eee6a2775b22bc16b338f6473c2e20afc6789f92a34f61e9a10ebcbeffaac4c100bd3453452e162178ad5d67aa7a00098ac1bdb2
   languageName: node
   linkType: hard
 
