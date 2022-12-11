@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/gordlea/fireboard2mqtt/compare/v1.1.0...v1.1.1) (2022-12-11)
+
+
+### Bug Fixes
+
+* fix version number for docker build ([f2b6c92](https://github.com/gordlea/fireboard2mqtt/commit/f2b6c92260b4c73f34218fe75015d7adf190e2a9))
+
 ## 1.1.0 (2022-12-11)
 
 
