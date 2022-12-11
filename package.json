@@ -1,6 +1,6 @@
 {
   "name": "fireboard2mqtt",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.js",
   "license": "MIT",
   "scripts": {
@@ -9,13 +9,14 @@
   },
   "dependencies": {
     "@lumbermill/node": "1.0.1-beta.1",
-    "config": "^3.3.6",
-    "icmp": "^2.0.1",
-    "luxon": "^2.1.1",
-    "mqtt": "^4.2.8",
+    "arpping": "^4.0.0",
+    "config": "^3.3.8",
+    "ip-address": "^8.1.0",
+    "luxon": "^3.1.1",
+    "mqtt": "^4.3.7",
     "node-fetch": "^2.6.6"
   },
-  "packageManager": "yarn@3.1.0",
+  "packageManager": "yarn@3.3.0",
   "devDependencies": {
     "jest": "^27.3.1"
   }

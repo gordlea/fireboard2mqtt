@@ -9,6 +9,8 @@ mqtt:
   baseTopic: FB2MQTT_MQTT_BASE_TOPIC
   clientIdPrefix: FB2MQTT_MQTT_CLIENTID_PREFIX
 loglevel: FB2MQTT_LOGLEVEL
+prefixEntityNamesWithFireboardId: FB2MQTT_PREFIX_ENTITIES_WITH_FBID
+prefixEntityNamesWithFireboardName: FB2MQTT_PREFIX_ENTITIES_WITH_FBNAME
 
 fireboard:
     accountEmail: FB2MQTT_FB_ACCOUNT_EMAIL
