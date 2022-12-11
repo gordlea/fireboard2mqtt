@@ -10,6 +10,10 @@ FB2MQTT_FB_ACCOUNT_EMAIL=$(bashio::config 'fireboardAccountEmail')
 export FB2MQTT_FB_ACCOUNT_EMAIL
 FB2MQTT_FB_ACCOUNT_PASSWORD=$(bashio::config 'fireboardAccountPassword')
 export FB2MQTT_FB_ACCOUNT_PASSWORD
+FB2MQTT_PREFIX_ENTITIES_WITH_FBID=$(bashio::config 'prefixEntityNamesWithFireboardId')
+export FB2MQTT_PREFIX_ENTITIES_WITH_FBID
+FB2MQTT_PREFIX_ENTITIES_WITH_FBNAME=$(bashio::config 'prefixEntityNamesWithFireboardName')
+export FB2MQTT_PREFIX_ENTITIES_WITH_FBNAME
 
 export DEBUG="fireboard2mqtt:*"
 
