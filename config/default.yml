@@ -8,6 +8,8 @@ mqtt:
   clientIdPrefix: "fireboard2mqtt"
 
 homeAssistantDiscovery: true
+prefixEntityNamesWithFireboardName: false
+prefixEntityNamesWithFireboardId: false
 fireboard:
     accountEmail: someone@example.com
     accountPassword: somepass
