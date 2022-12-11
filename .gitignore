@@ -6,6 +6,7 @@
 !.yarn/sdks
 !.yarn/versions
 node_modules
+
 config/local.yml
 
 # Logs
