@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/gordlea/fireboard2mqtt/compare/v2.0.0...v2.0.1) (2022-12-15)
+
+
+### Bug Fixes
+
+* set correct version number in config.yml ([f8229cd](https://github.com/gordlea/fireboard2mqtt/commit/f8229cd02a49a594d87f6f4585a13960e2e25a9c))
+
 ## [2.0.0](https://github.com/gordlea/fireboard2mqtt/compare/v1.1.1...v2.0.0) (2022-12-15)
 
 
