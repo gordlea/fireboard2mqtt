@@ -8,7 +8,11 @@ const Controller = require('./lib/Controller');
 
 const logger = lumbermill('fireboard2mqtt:cli');
 
+logger.info('starting fireboard2mqtt');
+
+logger.info('initializing mqtt client...');
 const mqtt = new MqttClient();
+logger.info('mqtt client ready.')
 const fireboardApiClient = new FireboardApiClient({
     username: cfg.fireboardAccountEmail,
     password: cfg.fireboardAccountPassword,

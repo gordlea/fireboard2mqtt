@@ -32,4 +32,4 @@ RUN apk add --no-cache nodejs npm && \
 
 COPY --from=builder /opt/fireboard2mqtt ./
 
-CMD [ "./run-ha-addon.sh" ]
+ENTRYPOINT [ "/opt/fireboard2mqtt/run-ha-addon.sh" ]

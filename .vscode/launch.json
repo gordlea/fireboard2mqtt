@@ -14,10 +14,7 @@
             ],
             "program": "${workspaceFolder}/cli.js",
             "skipFiles": ["<node_internals>/**", "node_modules/**"],
-            "args": [],
-            "env": {
-                "DEBUG": "fireboard2mqtt:*"
-            }
+            "args": []
         }
     ]
 }
