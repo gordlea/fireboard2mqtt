@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/gordlea/fireboard2mqtt/compare/v1.1.1...v2.0.0) (2022-12-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* support fireboard drive
+
+### Features
+
+* support fireboard drive ([0f070df](https://github.com/gordlea/fireboard2mqtt/commit/0f070df5286a5b84cd5d696092dd45d59fa07191))
+
 ## [1.1.1](https://github.com/gordlea/fireboard2mqtt/compare/v1.1.0...v1.1.1) (2022-12-11)
 
 
