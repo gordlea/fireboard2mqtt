@@ -1,6 +1,6 @@
 # fireboard2mqtt
 
-A simple service to bring your Fireboard wireless thermometer into home assistant via mqtt autodiscovery. 
+A simple service to bring your Fireboard wireless thermometer into home assistant via mqtt auto discovery. 
 
 This is also available as a [Home Assistant](https://www.home-assistant.io/) addon [here](https://github.com/gordlea/home-assistant-addons/tree/main/fireboard2mqtt).
 
