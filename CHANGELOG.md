@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/gordlea/fireboard2mqtt/compare/v2.0.1...v2.0.2) (2023-06-28)
+
+
+### Bug Fixes
+
+* fix sensors not reporting ([#14](https://github.com/gordlea/fireboard2mqtt/issues/14)) ([a729c4d](https://github.com/gordlea/fireboard2mqtt/commit/a729c4d905ddc1e62d7acd8ce0af3e37ac34a1e6))
+
 ## [2.0.1](https://github.com/gordlea/fireboard2mqtt/compare/v2.0.0...v2.0.1) (2022-12-15)
 
 
