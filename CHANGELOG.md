@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.4](https://github.com/gordlea/fireboard2mqtt/compare/v2.0.3...v2.0.4) (2023-07-30)
+
+
+### Bug Fixes
+
+* remove debug cli output ([f097b2e](https://github.com/gordlea/fireboard2mqtt/commit/f097b2e16feeefb56dff3f42eb5aa1f3199532f7))
+
 ## [2.0.3](https://github.com/gordlea/fireboard2mqtt/compare/v2.0.2...v2.0.3) (2023-07-30)
 
 
