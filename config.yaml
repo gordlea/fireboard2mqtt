@@ -1,5 +1,5 @@
 name: Fireboard 2 MQTT
-version: 2.0.1
+version: 2.0.3-dev.0
 stage: experimental
 slug: fireboard2mqtt
 url: https://github.com/gordlea/fireboard2mqtt
@@ -16,8 +16,6 @@ services:
 - "mqtt:need"
 init: false
 host_network: true
-startup: application
-boot: auto
 options:
   fireboardAccount_email: null
   fireboardAccount_password: null
