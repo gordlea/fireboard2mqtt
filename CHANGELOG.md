@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.3](https://github.com/gordlea/fireboard2mqtt/compare/v2.0.2...v2.0.3) (2023-07-30)
+
+
+### Bug Fixes
+
+* mqtt custom url now working ([#17](https://github.com/gordlea/fireboard2mqtt/issues/17)) ([7d31224](https://github.com/gordlea/fireboard2mqtt/commit/7d3122441aaf54d680330ddd2f9d0432cfd48574))
+
 ## [2.0.2](https://github.com/gordlea/fireboard2mqtt/compare/v2.0.1...v2.0.2) (2023-06-28)
 
 
