@@ -10,6 +10,8 @@ const logger = lumbermill('fireboard2mqtt:cli');
 
 logger.info('starting fireboard2mqtt');
 
+console.log(JSON.stringify(cfg, null, 2));
+
 logger.info('initializing mqtt client...');
 const mqtt = new MqttClient();
 logger.info('mqtt client ready.')

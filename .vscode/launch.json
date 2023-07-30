@@ -14,7 +14,8 @@
             ],
             "program": "${workspaceFolder}/cli.js",
             "skipFiles": ["<node_internals>/**", "node_modules/**"],
-            "args": []
+            "args": [],
+            "envFile": "${workspaceFolder}/.envrc"
         }
     ]
 }

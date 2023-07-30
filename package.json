@@ -16,7 +16,7 @@
     "mqtt": "^4.3.7",
     "node-fetch": "^2.6.7"
   },
-  "packageManager": "yarn@3.3.0",
+  "packageManager": "yarn@3.6.1",
   "devDependencies": {
     "jest": "^27.3.1"
   }
