@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.5](https://github.com/gordlea/fireboard2mqtt/compare/v2.0.4...v2.0.5) (2023-07-30)
+
+
+### Bug Fixes
+
+* fix missing image line in config.yaml ([55bccd3](https://github.com/gordlea/fireboard2mqtt/commit/55bccd3bea72c0734617d7e76d8406b53cd58153))
+
 ## [2.0.4](https://github.com/gordlea/fireboard2mqtt/compare/v2.0.3...v2.0.4) (2023-07-30)
 
 
