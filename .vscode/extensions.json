@@ -1,5 +1,11 @@
 {
-  "recommendations": [
-    "arcanis.vscode-zipfs"
-  ]
+    "recommendations": [
+        "mkhl.direnv",
+        "editorconfig.editorconfig",
+        "serayuzgur.crates",
+        "vadimcn.vscode-lldb",
+        "jinxdash.prettier-rust",
+        "rust-lang.rust-analyzer",
+        "gruntfuggly.todo-tree"
+    ]
 }

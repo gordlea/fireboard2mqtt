@@ -1,0 +1,12 @@
+[toolchain]
+channel = "stable"
+#channel = "nightly-2023-08-30"
+#channel = "nightly-2023-09-17"
+# channel = "nightly-2023-09-29"
+# channel = "nightly-2023-10-15"
+# channel = "nightly-2023-11-09"
+# channel = "nightly-2023-11-25"
+# channel = "nightly-2024-01-05"
+# channel = "nightly-2024-02-05"
+# channel = "nightly-2024-02-07"
+# channel = "nightly-2024-03-06"

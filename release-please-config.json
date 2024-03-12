@@ -1,9 +1,0 @@
-{
-    "extra-files": [
-        {
-            "type": "yaml",
-            "path": "config.yaml",
-            "jsonpath": "$.version"
-        }
-    ]
-}

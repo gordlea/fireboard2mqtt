@@ -5,17 +5,41 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "node",
+            "type": "lldb",
             "request": "launch",
-            "name": "Launch Program",
-            "runtimeExecutable": "yarn",
-            "runtimeArgs": [
-                "node"
-            ],
-            "program": "${workspaceFolder}/cli.js",
-            "skipFiles": ["<node_internals>/**", "node_modules/**"],
+            "name": "Debug executable 'fireboard2mqtt'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=fireboard2mqtt",
+                    "--package=fireboard2mqtt"
+                ],
+                "filter": {
+                    "name": "fireboard2mqtt",
+                    "kind": "bin"
+                }
+            },
             "args": [],
-            "envFile": "${workspaceFolder}/.envrc"
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'fireboard2mqtt'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=fireboard2mqtt",
+                    "--package=fireboard2mqtt"
+                ],
+                "filter": {
+                    "name": "fireboard2mqtt",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

@@ -1,0 +1,43 @@
+[package]
+name = "fireboard2mqtt"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["pretty_print_json_logs"]
+pretty_print_json_logs = ["serde", "serde_json"]
+
+[dependencies]
+fireboard_api_client = { path = "../fireboard-api-client" }
+anyhow = "1.0.80"
+chrono = { version = "0.4.31", default-features = false, features = [
+    "std",
+    "serde"
+]}
+env_struct = "0.1.4"
+tokio = { version = "1", features = ["full"] }
+log = "0.4.21"
+pretty_env_logger = "0.5.0"
+url = "2.5.0"
+serde = { version = "1.0", features = ["derive"], optional = true}
+serde_json = { version = "1.0", optional = true}
+signal-hook = "0.3.17"
+rumqttc = "0.24.0"
+bytes = "1.5"
+memory-stats = "1.1.0"
+human_bytes = { version = "0.4", default-features = false }
+
+[profile.dev]
+debug = true
+opt-level = 0
+lto = "off"
+panic = "unwind"
+strip = false
+
+[profile.release]
+debug = 0
+strip = true
+lto = true
+opt-level = 3
+codegen-units = 1
+panic = "abort"
