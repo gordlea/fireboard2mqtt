@@ -78,7 +78,7 @@ pub fn load_cfg_from_env() -> Fb2MqttConfig {
     let parsed_url = Url::parse(&cfg.fb2mqtt_mqtt_url);
 
     if let Err(err) = parsed_url {
-        error!("Error parsing mqtt url: {}", err);
+        error!("Error parsing mqtt url {}: {}", cfg.fb2mqtt_mqtt_url, err);
         cfg_load_error = true;
     }
 
