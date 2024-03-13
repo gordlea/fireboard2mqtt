@@ -1,9 +1,7 @@
 use bytes::Bytes;
-// use chrono::{DateTime, Utc, serde::ts_seconds};
-use fireboard_api_client::device::DegreeType;
 use serde::{ Deserialize, Serialize };
 
-use crate::{ OFFLINE, ONLINE };
+use crate::{ fireboard_api::DegreeType, OFFLINE, ONLINE };
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 #[repr(u8)]

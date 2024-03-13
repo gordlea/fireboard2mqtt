@@ -15,7 +15,7 @@ mod device;
 mod drive;
 mod fireboard_watcher;
 mod mqtt_action;
-
+mod fireboard_api;
 
 pub const ONLINE: &str = "online";
 pub const OFFLINE: &str = "offline";

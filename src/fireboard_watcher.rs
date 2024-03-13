@@ -1,16 +1,15 @@
-use fireboard_api_client::device::{ DriveModeType, FireboardApiDevice };
 use rumqttc::v5::mqttbytes::v5::LastWill;
 use rumqttc::v5::mqttbytes::QoS;
 use tokio::sync::mpsc::Sender;
 
 use anyhow::Result;
 
-use fireboard_api_client::FireboardApiClient;
 use log::{ debug, error, info, trace };
 
 use crate::config::Fb2MqttConfig;
 use crate::device::{ MQTTDiscoveryAvailabilityEntry, MQTTDiscoveryDevice, MQTTDiscoverySensor };
 use crate::drive::DriveAttributes;
+use crate::fireboard_api::{DriveModeType, FireboardApiClient, FireboardApiDevice};
 use crate::mqtt_action::MQTTAction;
 use crate::{ OFFLINE, ONLINE };
 
@@ -445,7 +444,6 @@ impl FireboardWatcher {
                     }
                 }
 
-                // let last_drivelog = device.last_drivelog.clone();
                 if drive_enabled {
                     let rt_drivelog_request = self.fb_client
                         .devices()
