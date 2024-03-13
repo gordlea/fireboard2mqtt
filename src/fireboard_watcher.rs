@@ -267,7 +267,7 @@ impl FireboardWatcher {
     }
 
     pub async fn update(&mut self) {
-        info!("running!");
+        info!("checking fireboard api for updates");
         let drive_enabled = self.cfg.fireboard_enable_drive;
         let result = self.fb_client.devices().list().await;
         if let Ok(returned_devices) = result {
