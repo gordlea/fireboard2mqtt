@@ -1,4 +1,5 @@
 use std::sync::{ atomic::AtomicBool, Arc };
+use std::process;
 use rumqttc::v5::{ AsyncClient, MqttOptions };
 use memory_stats::memory_stats;
 use log::{ debug, error, info, trace };
@@ -9,6 +10,7 @@ use crate::{
     mqtt_action::MQTTAction,
 };
 use human_bytes::human_bytes;
+use anyhow::Result;
 
 mod config;
 mod device;
@@ -21,7 +23,7 @@ pub const ONLINE: &str = "online";
 pub const OFFLINE: &str = "offline";
 
 #[tokio::main]
-async fn main() -> Result<(), std::io::Error> {
+async fn main() -> Result<()> {
     pretty_env_logger::init();
     let term = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term))?;
@@ -33,7 +35,14 @@ async fn main() -> Result<(), std::io::Error> {
     debug!("config loaded successfully");
 
     let (tx_mqtt, mut rx_mqtt) = mpsc::channel::<MQTTAction>(16);
-    let mut watcher = FireboardWatcher::new(&cfg, tx_mqtt.clone()).await.unwrap();
+    let mut watcher = {
+        let watcher_result = FireboardWatcher::new(&cfg, tx_mqtt.clone()).await;
+        if let Err(e) = watcher_result {
+            error!("Error setting up FireboardWatcher: {:?}", e);
+            process::exit(2);
+        }
+        watcher_result.unwrap()
+    };
 
     let (mqtt_client, mut mqtt_eventloop) = {
         let cfg = cfg.clone();
@@ -124,11 +133,11 @@ async fn main() -> Result<(), std::io::Error> {
         let event = mqtt_eventloop.poll().await;
         match &event {
             Ok(v) => {
-                trace!("mqtt Event = {v:?}");
+                trace!("mqtt event: {v:?}");
             }
             Err(e) => {
-                error!("Error = {e:?}");
-                return Ok(());
+                error!("mqtt error: {e:?}");
+                process::exit(3);
             }
         }
     }

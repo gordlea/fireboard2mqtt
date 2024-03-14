@@ -31,7 +31,7 @@ impl FireboardWatcher {
         let fb_client = FireboardApiClient::new(
             cfg.fireboardaccount_email.clone(),
             cfg.fireboardaccount_password.clone()
-        ).await.unwrap();
+        ).await?;
         debug!("client authenticated successfully");
 
         let mut fb_watcher = FireboardWatcher {

@@ -288,24 +288,34 @@ impl FireboardApiClient {
             
 
         let auth_client = reqwest::Client::new();
-        let auth = auth_client.post("https://fireboard.io/api/rest-auth/login/")
+        let auth_result = auth_client.post("https://fireboard.io/api/rest-auth/login/")
             .header("Content-Type", "application/json")
             .json(&credentials)
             .send()
-            .await?
-            .json::<FireboardCloudApiAuthResponse>()
-            .await?;
+            .await;
 
-        let key = format!("Token {}", auth.key);
+        if auth_result.is_ok() {
+            let auth_response = auth_result.unwrap();
 
-        let mut headers = HeaderMap::new();
-        headers.insert("Content-Type", HeaderValue::from_static("application/json"));
-        headers.insert("Authorization", HeaderValue::from_str(key.as_str())?);
+            let auth = match auth_response.error_for_status() {
+                Ok(r) => { r.json::<FireboardCloudApiAuthResponse>().await? },
+                Err(e) => {
+                    error!("Error authenticating with Fireboard API! Check your username and password: {}", e.to_string());
+                    return Err(e.into());
+                }
+            };
 
-        // set default client operation
-        let client = Arc::new(reqwest::Client::builder().default_headers(headers).build()?);
+            let mut headers = HeaderMap::new();
+            headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+            headers.insert("Authorization", HeaderValue::from_str(format!("Token {}", auth.key).as_str())?);
 
-        Ok(FireboardApiClient { api_base, client,})
+            // set default client operation
+            let client = Arc::new(reqwest::Client::builder().default_headers(headers).build()?);
+
+            return Ok(FireboardApiClient { api_base, client,})
+        } else {
+            return Err(anyhow::anyhow!("Error authenticating with Fireboard API! Check your username and password."));
+        }
     }
 
     
