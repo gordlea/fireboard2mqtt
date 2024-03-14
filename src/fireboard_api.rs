@@ -281,12 +281,9 @@ impl FireboardApiClient {
     pub async fn new(user_email: String, user_password: String) -> Result<FireboardApiClient> {
         let api_base = Url::parse(format!("https://fireboard.io/api/").as_str())?;
 
-        let mut map = HashMap::new();
-            map.insert("username", user_email);
-            map.insert("password", user_password);
         let credentials = FireboardCloudApiAuthRequest {
-            username: "***REMOVED***".to_string(),
-            password: "***REMOVED***".to_string(),
+            username: user_email.to_string(),
+            password: user_password.to_string(),
         };
             
 
