@@ -42,10 +42,13 @@ pub struct FireboardMqttChannel {
 pub struct MQTTDiscoverySensor {
     pub unique_id: String,
     pub object_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     pub availability: Vec<MQTTDiscoveryAvailabilityEntry>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<Vec<String>>,
     pub enabled_by_default: bool,
     pub encoding: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -60,8 +63,12 @@ pub struct MQTTDiscoverySensor {
     pub state_topic: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_of_measurement: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub suggested_unit_of_measurement: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<MQTTDiscoveryDevice>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_after: Option<u32>,
 }
 
 impl Into<Bytes> for MQTTDiscoverySensor {
@@ -84,6 +91,7 @@ impl Default for MQTTDiscoverySensor {
             enabled_by_default: true,
             encoding: "utf-8".to_string(),
             suggested_display_precision: None,
+            options: None,
             qos: 0,
             state_class: "measurement".to_string(),
             json_attributes_topic: None,
@@ -91,6 +99,60 @@ impl Default for MQTTDiscoverySensor {
             state_topic: "".to_string(),
             unit_of_measurement: None,
             suggested_unit_of_measurement: None,
+            device: None,
+            expires_after: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MQTTDiscoveryBinarySensor {
+    pub unique_id: String,
+    pub object_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    pub availability: Vec<MQTTDiscoveryAvailabilityEntry>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_class: Option<String>,
+    pub enabled_by_default: bool,
+    pub encoding: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggested_display_precision: Option<u16>,
+    pub qos: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub json_attributes_topic: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    /// see https://www.home-assistant.io/integrations/sensor.mqtt/#state_topic
+    pub state_topic: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device: Option<MQTTDiscoveryDevice>,
+}
+
+impl Into<Bytes> for MQTTDiscoveryBinarySensor {
+    fn into(self) -> Bytes {
+        // let mut sensor = json!(self);
+        let json = serde_json::to_string(&self).unwrap();
+        // sensor.as_object_mut().unwrap().insert("device".to_string(), json!({}));
+        Bytes::from(json)
+    }
+}
+
+impl Default for MQTTDiscoveryBinarySensor {
+    fn default() -> Self {
+        MQTTDiscoveryBinarySensor {
+            unique_id: "".to_string(),
+            object_id: "".to_string(),
+            name: None,
+            availability: vec![],
+            device_class: None,
+            enabled_by_default: true,
+            encoding: "utf-8".to_string(),
+            suggested_display_precision: None,
+            qos: 0,
+            json_attributes_topic: None,
+            icon: None,
+            state_topic: "".to_string(),
             device: None,
         }
     }
@@ -103,8 +165,8 @@ pub struct MQTTDiscoveryAvailabilityEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payload_not_available: Option<String>,
     pub topic: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub value_template: Option<String>,
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub value_template: Option<String>,
 }
 
 impl From<String> for MQTTDiscoveryAvailabilityEntry {
@@ -113,7 +175,7 @@ impl From<String> for MQTTDiscoveryAvailabilityEntry {
             payload_available: Some(ONLINE.to_string()),
             payload_not_available: Some(OFFLINE.to_string()),
             topic,
-            value_template: None,
+            // value_template: None,
         }
     }
 }

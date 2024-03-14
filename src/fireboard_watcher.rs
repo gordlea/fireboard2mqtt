@@ -7,7 +7,7 @@ use anyhow::Result;
 use log::{ debug, error, info, trace };
 
 use crate::config::Fb2MqttConfig;
-use crate::device::{ MQTTDiscoveryAvailabilityEntry, MQTTDiscoveryDevice, MQTTDiscoverySensor };
+use crate::device::{ MQTTDiscoveryAvailabilityEntry, MQTTDiscoveryBinarySensor, MQTTDiscoveryDevice, MQTTDiscoverySensor };
 use crate::drive::DriveAttributes;
 use crate::fireboard_api::{DriveModeType, FireboardApiClient, FireboardApiDevice};
 use crate::mqtt_action::MQTTAction;
@@ -99,6 +99,16 @@ impl FireboardWatcher {
     pub fn get_topic_device_drive_discovery(&self, device_identifier: &String) -> String {
         format!("{}/drive/config", self.get_discovery_base_topic(device_identifier))
     }
+    pub fn get_topic_device_drivemode_discovery(&self, device_identifier: &String) -> String {
+        format!("{}/drivemode/config", self.get_discovery_base_topic(device_identifier))
+    }
+    pub fn get_topic_device_drive_setpoint_discovery(&self, device_identifier: &String) -> String {
+        format!("{}/drive_setpoint/config", self.get_discovery_base_topic(device_identifier))
+    }
+
+    pub fn get_topic_device_drive_lidpaused_discovery(&self, device_identifier: &String) -> String {
+        format!("{}/drive_lidpaused/config", self.get_discovery_base_topic(device_identifier))
+    }    
 
     pub fn get_topic_device_drive(&self, device_identifier: &String) -> String {
         format!("{}/drive", self.get_device_base_topic(device_identifier))
@@ -108,9 +118,26 @@ impl FireboardWatcher {
         format!("{}/availability", self.get_topic_device_drive(device_identifier))
     }
 
+    pub fn get_topic_device_drive_setpoint_availability(&self, device_identifier: &String) -> String {
+        format!("{}/setpoint_availability", self.get_topic_device_drive(device_identifier))
+    }
+
+
     pub fn get_topic_device_drive_state(&self, device_identifier: &String) -> String {
         format!("{}/state", self.get_topic_device_drive(device_identifier))
     }
+
+    pub fn get_topic_device_drive_mode(&self, device_identifier: &String) -> String {
+        format!("{}/mode", self.get_topic_device_drive(device_identifier))
+    }
+
+    pub fn get_topic_device_drive_setpoint(&self, device_identifier: &String) -> String {
+        format!("{}/setpoint", self.get_topic_device_drive(device_identifier))
+    }
+
+    pub fn get_topic_device_drive_lidpaused(&self, device_identifier: &String) -> String {
+        format!("{}/lidpaused", self.get_topic_device_drive(device_identifier))
+    }    
 
     pub fn get_topic_device_drive_attributes(&self, device_identifier: &String) -> String {
         format!("{}/attributes", self.get_topic_device_drive(device_identifier))
@@ -216,6 +243,7 @@ impl FireboardWatcher {
                 state_topic: format!("{}/state", channel_topic),
                 unit_of_measurement: Some(device.degreetype.to_string()),
                 device: parent_device.clone(),
+                // expires_after: Some(60),
                 ..MQTTDiscoverySensor::default()
             };
             self.tx
@@ -234,7 +262,7 @@ impl FireboardWatcher {
         let drive_id = format!("{}_drive", hardware_id);
         let drive_discovery = MQTTDiscoverySensor {
             unique_id: drive_id.clone(),
-            object_id: drive_id,
+            object_id: drive_id.clone(),
             name: Some("Drive".to_string()),
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
@@ -252,18 +280,124 @@ impl FireboardWatcher {
             state_topic: self.get_topic_device_drive_state(&hardware_id),
             unit_of_measurement: Some("%".to_string()),
             device: parent_device.clone(),
+            json_attributes_topic: Some(self.get_topic_device_drive_attributes(&hardware_id)),
+            ..MQTTDiscoverySensor::default()
+        };
+
+        self.tx
+        .send(MQTTAction::Publish {
+            topic: self.get_topic_device_drive_discovery(&hardware_id),
+            qos: QoS::AtMostOnce,
+            retain: true,
+            payload: drive_discovery.into(),
+            props: None,
+        }).await
+        .unwrap();
+
+        let drive_mode_id = format!("{}_mode", drive_id.clone());
+        let drive_mode_discovery = MQTTDiscoverySensor {
+            unique_id: drive_mode_id.clone(),
+            object_id: drive_mode_id.clone(),
+            name: Some("Drive Mode".to_string()),
+            availability: vec![
+                MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_availablility(&hardware_id)
+                ),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_drive_availability(&hardware_id)
+                )
+            ],
+            device_class: Some("enum".to_string()),
+            options: Some(vec![
+                "off".to_string(),
+                "manual".to_string(),
+                "auto".to_string()
+            ]),
+            qos: 0,
+            icon: Some("mdi:fan-alert".to_string()),
+            // icon: None,
+            state_topic: self.get_topic_device_drive_mode(&hardware_id),
+            // unit_of_measurement: Some("%".to_string()),
+            device: parent_device.clone(),
+            ..MQTTDiscoverySensor::default()
+        };
+        self.tx
+        .send(MQTTAction::Publish {
+            topic: self.get_topic_device_drivemode_discovery(&hardware_id),
+            qos: QoS::AtMostOnce,
+            retain: true,
+            payload: drive_mode_discovery.into(),
+            props: None,
+        }).await
+        .unwrap();
+
+        let drive_setpoint_id = format!("{}_setpoint", drive_id.clone());
+        let drive_setpoint_discovery = MQTTDiscoverySensor {
+            unique_id: drive_setpoint_id.clone(),
+            object_id: drive_setpoint_id.clone(),
+            name: Some("Drive Setpoint".to_string()),
+            availability: vec![
+                MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_availablility(&hardware_id)
+                ),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_drive_availability(&hardware_id)
+                ),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_drive_setpoint_availability(&hardware_id)
+                ),
+            ],
+            icon: Some("mdi:thermometer-auto".to_string()),
+            suggested_unit_of_measurement: Some("°F".to_string()),
+            device_class: Some("temperature".to_string()),
+            qos: 0,
+            state_topic: self.get_topic_device_drive_setpoint(&hardware_id),
+            unit_of_measurement: Some(device.degreetype.to_string()),
+            device: parent_device.clone(),
             ..MQTTDiscoverySensor::default()
         };
         self.tx
             .send(MQTTAction::Publish {
-                topic: self.get_topic_device_drive_discovery(&hardware_id),
+                topic: self.get_topic_device_drive_setpoint_discovery(&hardware_id),
                 qos: QoS::AtMostOnce,
                 retain: true,
-                payload: drive_discovery.into(),
+                payload: drive_setpoint_discovery.into(),
                 props: None,
             }).await
             .unwrap();
-        // }
+
+        let drive_lidpaused_id = format!("{}_lidpaused", drive_id.clone());
+        let drive_lidpaused_discovery = MQTTDiscoveryBinarySensor {
+            unique_id: drive_lidpaused_id.clone(),
+            object_id: drive_lidpaused_id.clone(),
+            name: Some("Drive Lid Paused".to_string()),
+            availability: vec![
+                MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_availablility(&hardware_id)
+                ),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_drive_availability(&hardware_id)
+                )
+            ],
+            // icon: Some("mdi:fan-alert".to_string()),
+            device_class: Some("opening".to_string()),
+            qos: 0,
+            state_topic: self.get_topic_device_drive_lidpaused(&hardware_id),
+            device: parent_device.clone(),
+            ..MQTTDiscoveryBinarySensor::default()
+        };
+        self.tx
+            .send(MQTTAction::Publish {
+                topic: self.get_topic_device_drive_lidpaused_discovery(&hardware_id),
+                qos: QoS::AtMostOnce,
+                retain: true,
+                payload: drive_lidpaused_discovery.into(),
+                props: None,
+            }).await
+            .unwrap();
     }
 
     pub async fn update(&mut self) {
@@ -302,78 +436,6 @@ impl FireboardWatcher {
                     }).await
                     .unwrap();
 
-                // if self.cfg.cleanup_legacy_mqtt {
-                //     self.tx
-                //         .send(MQTTAction::Publish {
-                //             topic: format!(
-                //                 "{}/availability",
-                //                 self.get_topic_device_battery(&hardware_id)
-                //             ),
-                //             qos: QoS::AtMostOnce,
-                //             retain: true,
-                //             payload: "".into(),
-                //             props: None,
-                //         }).await
-                //         .unwrap();
-                //     self.tx
-                //         .send(MQTTAction::Publish {
-                //             topic: format!("{}/state", self.get_topic_device_battery(&hardware_id)),
-                //             qos: QoS::AtMostOnce,
-                //             retain: true,
-                //             payload: "".into(),
-                //             props: None,
-                //         }).await
-                //         .unwrap();
-                //     self.tx
-                //         .send(MQTTAction::Publish {
-                //             topic: format!(
-                //                 "{}/drive_speed/state",
-                //                 self.get_device_base_topic(&hardware_id)
-                //             ),
-                //             qos: QoS::AtMostOnce,
-                //             retain: true,
-                //             payload: "".into(),
-                //             props: None,
-                //         }).await
-                //         .unwrap();
-                //     self.tx
-                //         .send(MQTTAction::Publish {
-                //             topic: format!(
-                //                 "{}/drive_speed/attributes",
-                //                 self.get_device_base_topic(&hardware_id)
-                //             ),
-                //             qos: QoS::AtMostOnce,
-                //             retain: true,
-                //             payload: "".into(),
-                //             props: None,
-                //         }).await
-                //         .unwrap();
-                //     self.tx
-                //         .send(MQTTAction::Publish {
-                //             topic: format!(
-                //                 "{}/drive_speed/availability",
-                //                 self.get_device_base_topic(&hardware_id)
-                //             ),
-                //             qos: QoS::AtMostOnce,
-                //             retain: true,
-                //             payload: "".into(),
-                //             props: None,
-                //         }).await
-                //         .unwrap();
-                //     self.tx
-                //         .send(MQTTAction::Publish {
-                //             topic: format!(
-                //                 "{}/drive_speed",
-                //                 self.get_device_base_topic(&hardware_id)
-                //             ),
-                //             qos: QoS::AtMostOnce,
-                //             retain: true,
-                //             payload: "".into(),
-                //             props: None,
-                //         }).await
-                //         .unwrap();
-                // }
-
                 // update mqtt discovery
                 self.update_discovery(&device).await;
 
@@ -381,7 +443,7 @@ impl FireboardWatcher {
                 if device_online {
                     self.online_device_count += 1;
 
-                    let batt_percentage = f32_to_u8_pct(device.device_log.v_batt_per_raw);
+                    let batt_percentage = f32_to_u8_pct(device.device_log.v_batt_per);
 
                     self.tx
                         .send(MQTTAction::Publish {
@@ -489,12 +551,81 @@ impl FireboardWatcher {
                                 tiedchannel: drivelog.tiedchannel,
                                 lid_paused: drivelog.lidpaused,
                             };
+                            if modetype == DriveModeType::Auto {
+                                self.tx
+                                    .send(MQTTAction::Publish {
+                                        topic: self.get_topic_device_drive_setpoint(&hardware_id),
+                                        qos: QoS::AtMostOnce,
+                                        retain: false,
+                                        payload: drivelog.setpoint.to_string().into(),
+                                        props: None,
+                                    }).await
+                                    .unwrap();
+                                self.tx
+                                    .send(MQTTAction::Publish {
+                                        topic: self.get_topic_device_drive_setpoint_availability(&hardware_id),
+                                        qos: QoS::AtMostOnce,
+                                        retain: false,
+                                        payload: ONLINE.into(),
+                                        props: None,
+                                    }).await
+                                    .unwrap();                                
+                            } else {
+                                self.tx
+                                    .send(MQTTAction::Publish {
+                                        topic: self.get_topic_device_drive_setpoint(&hardware_id),
+                                        qos: QoS::AtMostOnce,
+                                        retain: false,
+                                        payload: "".into(),
+                                        props: None,
+                                    }).await
+                                    .unwrap();
+                                self.tx
+                                .send(MQTTAction::Publish {
+                                    topic: self.get_topic_device_drive_setpoint_availability(&hardware_id),
+                                    qos: QoS::AtMostOnce,
+                                    retain: false,
+                                    payload: OFFLINE.into(),
+                                    props: None,
+                                }).await
+                                .unwrap();   
+                            }
+                            // self.tx
+                            // .send(MQTTAction::Publish {
+                            //     topic: self.get_topic_device_drive_setpoint(&hardware_id),
+                            //     qos: QoS::AtMostOnce,
+                            //     retain: false,
+                            //     payload: drivelog.setpoint.to_string().into(),
+                            //     props: None,
+                            // }).await
+                            // .unwrap();
+
+                            self.tx
+                            .send(MQTTAction::Publish {
+                                topic: self.get_topic_device_drive_lidpaused(&hardware_id),
+                                qos: QoS::AtMostOnce,
+                                retain: false,
+                                payload: drivelog.lidpaused.to_string().into(),
+                                props: None,
+                            }).await
+                            .unwrap();
+
                             self.tx
                                 .send(MQTTAction::Publish {
                                     topic: self.get_topic_device_drive_attributes(&hardware_id),
                                     qos: QoS::AtMostOnce,
                                     retain: false,
                                     payload: drive_attributes.into(),
+                                    props: None,
+                                }).await
+                                .unwrap();
+
+                            self.tx
+                                .send(MQTTAction::Publish {
+                                    topic: self.get_topic_device_drive_mode(&hardware_id),
+                                    qos: QoS::AtMostOnce,
+                                    retain: false,
+                                    payload: modetype.to_string().into(),
                                     props: None,
                                 }).await
                                 .unwrap();
