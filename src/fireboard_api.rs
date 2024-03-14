@@ -2,7 +2,7 @@ use anyhow::Result;
 use log::error;
 use reqwest::{Url, header::{HeaderMap, HeaderValue}};
 use serde_json::{json, Value};
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
 extern crate serde_json;
