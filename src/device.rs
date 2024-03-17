@@ -20,18 +20,6 @@ impl From<DegreeType> for UnitOfTemperatureMeasurement {
     }
 }
 
-// impl UnitOfTemperatureMeasurement {
-//     #[allow(dead_code)]
-//     pub fn to_string(&self) -> String {
-//         match self {
-//             // UnitOfTemperatureMeasurement::Kelvin => "K".to_string(),
-//             UnitOfTemperatureMeasurement::Celcius => "°C".to_string(),
-//             UnitOfTemperatureMeasurement::Fahrenheit => "°F".to_string(),
-//         }
-//     }
-// }
-
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FireboardMqttChannel {
     pub availability: String,
@@ -127,6 +115,10 @@ pub struct MQTTDiscoveryBinarySensor {
     /// see https://www.home-assistant.io/integrations/sensor.mqtt/#state_topic
     pub state_topic: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload_on: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload_off: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<MQTTDiscoveryDevice>,
 }
 
@@ -154,6 +146,8 @@ impl Default for MQTTDiscoveryBinarySensor {
             json_attributes_topic: None,
             icon: None,
             state_topic: "".to_string(),
+            payload_on: None,
+            payload_off: None,
             device: None,
         }
     }

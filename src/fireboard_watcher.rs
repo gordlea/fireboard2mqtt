@@ -52,8 +52,12 @@ impl FireboardWatcher {
         format!("{}/bridge/availability", self.cfg.mqtt_base_topic)
     }
 
-    pub fn get_discovery_base_topic(&self, device_identifier: &String) -> String {
+    pub fn get_discovery_sensor_base_topic(&self, device_identifier: &String) -> String {
         format!("{}/sensor/{}", self.cfg.mqtt_discovery_topic, device_identifier)
+    }
+
+    pub fn get_discovery_binary_sensor_base_topic(&self, device_identifier: &String) -> String {
+        format!("{}/binary_sensor/{}", self.cfg.mqtt_discovery_topic, device_identifier)
     }
 
     pub fn get_device_base_topic(&self, device_identifier: &String) -> String {
@@ -69,7 +73,7 @@ impl FireboardWatcher {
     }
 
     pub fn get_topic_device_battery_discovery(&self, device_identifier: &String) -> String {
-        format!("{}/battery/config", self.get_discovery_base_topic(device_identifier))
+        format!("{}/battery/config", self.get_discovery_sensor_base_topic(device_identifier))
     }
 
     pub fn get_topic_device_channel(&self, device_identifier: &String, channel: &usize) -> String {
@@ -93,21 +97,21 @@ impl FireboardWatcher {
         device_identifier: &String,
         channel: &usize
     ) -> String {
-        format!("{}/channel_{}/config", self.get_discovery_base_topic(device_identifier), channel)
+        format!("{}/channel_{}/config", self.get_discovery_sensor_base_topic(device_identifier), channel)
     }
 
     pub fn get_topic_device_drive_discovery(&self, device_identifier: &String) -> String {
-        format!("{}/drive/config", self.get_discovery_base_topic(device_identifier))
+        format!("{}/drive/config", self.get_discovery_sensor_base_topic(device_identifier))
     }
     pub fn get_topic_device_drivemode_discovery(&self, device_identifier: &String) -> String {
-        format!("{}/drivemode/config", self.get_discovery_base_topic(device_identifier))
+        format!("{}/drivemode/config", self.get_discovery_sensor_base_topic(device_identifier))
     }
     pub fn get_topic_device_drive_setpoint_discovery(&self, device_identifier: &String) -> String {
-        format!("{}/drive_setpoint/config", self.get_discovery_base_topic(device_identifier))
+        format!("{}/drive_setpoint/config", self.get_discovery_sensor_base_topic(device_identifier))
     }
 
     pub fn get_topic_device_drive_lidpaused_discovery(&self, device_identifier: &String) -> String {
-        format!("{}/drive_lidpaused/config", self.get_discovery_base_topic(device_identifier))
+        format!("{}/drive_lidpaused/config", self.get_discovery_binary_sensor_base_topic(device_identifier))
     }    
 
     pub fn get_topic_device_drive(&self, device_identifier: &String) -> String {
@@ -384,7 +388,7 @@ impl FireboardWatcher {
                 )
             ],
             // icon: Some("mdi:fan-alert".to_string()),
-            device_class: Some("opening".to_string()),
+            // device_class: Some("opening".to_string()),
             qos: 0,
             state_topic: self.get_topic_device_drive_lidpaused(&hardware_id),
             device: parent_device.clone(),
@@ -606,7 +610,7 @@ impl FireboardWatcher {
                                 topic: self.get_topic_device_drive_lidpaused(&hardware_id),
                                 qos: QoS::AtMostOnce,
                                 retain: false,
-                                payload: drivelog.lidpaused.to_string().into(),
+                                payload: if drivelog.lidpaused { "ON" } else { "OFF" }.into(),
                                 props: None,
                             }).await
                             .unwrap();
