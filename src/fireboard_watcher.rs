@@ -316,6 +316,7 @@ impl FireboardWatcher {
             ]),
             qos: 0,
             icon: Some("mdi:fan-alert".to_string()),
+            state_class: None,
             // icon: None,
             state_topic: self.get_topic_device_drive_mode(&hardware_id),
             // unit_of_measurement: Some("%".to_string()),

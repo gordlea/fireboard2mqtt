@@ -54,7 +54,8 @@ pub struct MQTTDiscoverySensor {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub suggested_display_precision: Option<u16>,
     pub qos: u8,
-    pub state_class: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state_class: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub json_attributes_topic: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -93,7 +94,7 @@ impl Default for MQTTDiscoverySensor {
             suggested_display_precision: None,
             options: None,
             qos: 0,
-            state_class: "measurement".to_string(),
+            state_class: Some("measurement".to_string()),
             json_attributes_topic: None,
             icon: None,
             state_topic: "".to_string(),
