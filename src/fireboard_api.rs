@@ -51,7 +51,7 @@ pub struct FireboardApiDevice {
 pub struct FireboardDeviceLog {
     #[serde(alias = "cpuUsage")]
     pub cpu_usage: String,
-    pub nightmode: bool,
+    pub nightmode: Option<bool>,
     #[serde(alias = "macNIC")]
     pub mac_nic: String,
     // linkquality: usize,
