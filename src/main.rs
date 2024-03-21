@@ -1,26 +1,27 @@
-use std::sync::{ atomic::AtomicBool, Arc };
-use std::process;
-use rumqttc::v5::{ AsyncClient, MqttOptions };
-use memory_stats::memory_stats;
-use log::{ debug, error, info, trace };
-use tokio::{ sync::mpsc, time::{ self, sleep } };
 use crate::{
-    config::load_cfg_from_env,
-    fireboard_watcher::FireboardWatcher,
-    mqtt_action::MQTTAction,
+    config::load_cfg_from_env, fireboard_watcher::FireboardWatcher, mqtt_action::MQTTAction,
 };
-use human_bytes::human_bytes;
 use anyhow::Result;
+use human_bytes::human_bytes;
+use log::{debug, error, info, trace};
+use memory_stats::memory_stats;
+use rumqttc::v5::{AsyncClient, MqttOptions};
+use std::process;
+use std::sync::{atomic::AtomicBool, Arc};
+use tokio::{
+    sync::mpsc,
+    time::{self, sleep},
+};
 
 mod config;
+mod constants;
 mod device;
 mod drive;
+mod fireboard_api;
 mod fireboard_watcher;
 mod mqtt_action;
-mod fireboard_api;
+mod utils;
 
-pub const ONLINE: &str = "online";
-pub const OFFLINE: &str = "offline";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -49,7 +50,7 @@ async fn main() -> Result<()> {
         let mut mqtt_options = MqttOptions::new(
             cfg.mqtt_clientid.clone(),
             cfg.mqtt_host.clone(),
-            cfg.mqtt_port.clone()
+            cfg.mqtt_port.clone(),
         );
         if let Some((username, password)) = cfg.mqtt_credentials {
             mqtt_options.set_credentials(username, password);
@@ -61,19 +62,30 @@ async fn main() -> Result<()> {
     tokio::spawn(async move {
         while let Some(action) = rx_mqtt.recv().await {
             match action {
-                MQTTAction::Publish { topic, qos, retain, payload, props } => {
+                MQTTAction::Publish {
+                    topic,
+                    qos,
+                    retain,
+                    payload,
+                    props,
+                } => {
                     if let Some(properties) = props {
                         mqtt_client
-                            .publish_with_properties(topic, qos, retain, payload, properties).await
+                            .publish_with_properties(topic, qos, retain, payload, properties)
+                            .await
                             .unwrap();
                     } else {
-                        mqtt_client.publish(topic, qos, retain, payload).await.unwrap();
+                        mqtt_client
+                            .publish(topic, qos, retain, payload)
+                            .await
+                            .unwrap();
                     }
                 }
                 MQTTAction::Subscribe { topic, qos, props } => {
                     if let Some(properties) = props {
                         mqtt_client
-                            .subscribe_with_properties(topic, qos, properties).await
+                            .subscribe_with_properties(topic, qos, properties)
+                            .await
                             .unwrap();
                     } else {
                         mqtt_client.subscribe(topic, qos).await.unwrap();
@@ -81,7 +93,10 @@ async fn main() -> Result<()> {
                 }
                 MQTTAction::Unsubscribe { topic, props } => {
                     if let Some(properties) = props {
-                        mqtt_client.unsubscribe_with_properties(topic, properties).await.unwrap();
+                        mqtt_client
+                            .unsubscribe_with_properties(topic, properties)
+                            .await
+                            .unwrap();
                     } else {
                         mqtt_client.unsubscribe(topic).await.unwrap();
                     }
@@ -99,7 +114,10 @@ async fn main() -> Result<()> {
             // update_interval.tick().await;
             watcher.update().await;
             if let Some(usage) = memory_stats() {
-                info!("Current physical memory usage: {}", human_bytes(usage.physical_mem as u32));
+                info!(
+                    "Current physical memory usage: {}",
+                    human_bytes(usage.physical_mem as u32)
+                );
                 // info!("Current virtual memory usage: {}", usage.virtual_mem);
             }
             debug!("there are {} devices online", watcher.online_device_count());
@@ -123,7 +141,10 @@ async fn main() -> Result<()> {
                 // we default to polling once a minute when no devices are online
                 60
             };
-            debug!("updating from fireboard cloud api in {} seconds", sleep_duration);
+            debug!(
+                "updating from fireboard cloud api in {} seconds",
+                sleep_duration
+            );
             sleep(time::Duration::from_secs(sleep_duration)).await;
         }
     });

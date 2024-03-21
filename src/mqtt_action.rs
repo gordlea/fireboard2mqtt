@@ -1,5 +1,8 @@
 use bytes::Bytes;
-use rumqttc::v5::mqttbytes::{v5::{PublishProperties, SubscribeProperties, UnsubscribeProperties}, QoS};
+use rumqttc::v5::mqttbytes::{
+    v5::{PublishProperties, SubscribeProperties, UnsubscribeProperties},
+    QoS,
+};
 
 #[derive(Debug, Clone)]
 pub enum MQTTAction {

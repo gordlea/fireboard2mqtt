@@ -1,12 +1,15 @@
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use log::error;
-use reqwest::{Url, header::{HeaderMap, HeaderValue}};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    Url,
+};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Deserializer, Serialize};
 extern crate serde_json;
-use serde_repr::{Serialize_repr, Deserialize_repr};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct FireboardCloudApiAuthRequest {
@@ -86,7 +89,6 @@ pub struct FireboardTemps {
     pub created: DateTime<Utc>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardRealtimeDrivelog {
     #[serde(deserialize_with = "drivemode_from_string")]
@@ -106,14 +108,16 @@ pub struct FireboardRealtimeDrivelog {
 }
 
 fn bool_from_int<'de, D>(deserializer: D) -> Result<bool, D::Error>
-    where D: Deserializer<'de>
+where
+    D: Deserializer<'de>,
 {
     let s = usize::deserialize(deserializer)?;
     Ok(s == 1)
 }
 
 fn drivemode_from_string<'de, D>(deserializer: D) -> Result<DriveModeType, D::Error>
-    where D: Deserializer<'de>
+where
+    D: Deserializer<'de>,
 {
     // eprintln!("drivemode_from_string");
     let s = String::deserialize(deserializer)?;
@@ -130,10 +134,10 @@ pub struct DriveLog {
     pub driveper: f32,
     pub drivetype: u8,
     pub id: usize,
-    
+
     // #[serde(deserialize_with = "deserialize_jsonraw")]
     pub jsonraw: String,
-    /// 0 is off, 1 is manual, 2 is auto 
+    /// 0 is off, 1 is manual, 2 is auto
     pub modetype: DriveModeType,
 
     // I don't know what these are
@@ -156,10 +160,8 @@ pub struct DriveLog {
     pub var1: f32,
     pub var2: f32,
     pub var3: f32,
-    pub vbatt: f32
+    pub vbatt: f32,
 }
-
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DriveModeRaw {
@@ -199,9 +201,8 @@ pub struct DriveModeRaw {
     pub v1: f32,
     pub v2: f32,
     pub v3: f32,
-    pub pm: usize
+    pub pm: usize,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProgramInfoRaw {
@@ -213,7 +214,6 @@ pub struct ProgramInfoRaw {
     pub stepposition: usize,
 }
 
- 
 #[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum DegreeType {
@@ -230,7 +230,6 @@ impl ToString for DegreeType {
     }
 }
 
-
 #[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum DriveModeType {
@@ -245,7 +244,7 @@ impl From<String> for DriveModeType {
             "off" => DriveModeType::Off,
             "manual" => DriveModeType::Manual,
             "auto" => DriveModeType::Auto,
-            _ => panic!("Invalid DriveModeType: {}", s)
+            _ => panic!("Invalid DriveModeType: {}", s),
         }
     }
 }
@@ -260,7 +259,6 @@ impl ToString for DriveModeType {
     }
 }
 
-
 #[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum ProgramState {
@@ -270,7 +268,6 @@ pub enum ProgramState {
     Paused = 2,
     Complete = 3,
 }
-
 
 pub struct FireboardApiClient {
     api_base: url::Url,
@@ -285,10 +282,10 @@ impl FireboardApiClient {
             username: user_email.to_string(),
             password: user_password.to_string(),
         };
-            
 
         let auth_client = reqwest::Client::new();
-        let auth_result = auth_client.post("https://fireboard.io/api/rest-auth/login/")
+        let auth_result = auth_client
+            .post("https://fireboard.io/api/rest-auth/login/")
             .header("Content-Type", "application/json")
             .json(&credentials)
             .send()
@@ -298,7 +295,7 @@ impl FireboardApiClient {
             let auth_response = auth_result.unwrap();
 
             let auth = match auth_response.error_for_status() {
-                Ok(r) => { r.json::<FireboardCloudApiAuthResponse>().await? },
+                Ok(r) => r.json::<FireboardCloudApiAuthResponse>().await?,
                 Err(e) => {
                     error!("Error authenticating with Fireboard API! Check your username and password: {}", e.to_string());
                     return Err(e.into());
@@ -307,23 +304,30 @@ impl FireboardApiClient {
 
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", HeaderValue::from_static("application/json"));
-            headers.insert("Authorization", HeaderValue::from_str(format!("Token {}", auth.key).as_str())?);
+            headers.insert(
+                "Authorization",
+                HeaderValue::from_str(format!("Token {}", auth.key).as_str())?,
+            );
 
             // set default client operation
-            let client = Arc::new(reqwest::Client::builder().default_headers(headers).build()?);
+            let client = Arc::new(
+                reqwest::Client::builder()
+                    .default_headers(headers)
+                    .build()?,
+            );
 
-            return Ok(FireboardApiClient { api_base, client,})
+            return Ok(FireboardApiClient { api_base, client });
         } else {
-            return Err(anyhow::anyhow!("Error authenticating with Fireboard API! Check your username and password."));
+            return Err(anyhow::anyhow!(
+                "Error authenticating with Fireboard API! Check your username and password."
+            ));
         }
     }
 
-    
     pub fn devices(&self) -> DevicesEndpoint {
         DevicesEndpoint(self)
     }
 }
-
 
 pub struct DevicesEndpoint<'c>(&'c FireboardApiClient);
 
@@ -336,10 +340,7 @@ impl<'c> DevicesEndpoint<'c> {
         let base_endpoint = self.endpoint()?;
         let endpoint = base_endpoint.join("devices.json")?;
 
-
-        let request_attempt = self.0.client.get(endpoint)
-            .send()
-            .await;
+        let request_attempt = self.0.client.get(endpoint).send().await;
 
         if let Err(e) = request_attempt {
             error!("Error getting devices: {}", e.to_string());
@@ -350,7 +351,10 @@ impl<'c> DevicesEndpoint<'c> {
 
         if !response.status().is_success() {
             error!("Error getting devices: {}", response.status().to_string());
-            return Err(anyhow::anyhow!("Error getting devices: {}", response.status().to_string()));
+            return Err(anyhow::anyhow!(
+                "Error getting devices: {}",
+                response.status().to_string()
+            ));
         } else {
             let devices = response.json::<Vec<FireboardApiDevice>>().await;
             if let Err(e) = devices {
@@ -361,14 +365,19 @@ impl<'c> DevicesEndpoint<'c> {
         }
     }
 
-    pub async fn get_realtime_drivelog(&self, device_uuid: String) -> Result<Option<FireboardRealtimeDrivelog>> {
+    pub async fn get_realtime_drivelog(
+        &self,
+        device_uuid: String,
+    ) -> Result<Option<FireboardRealtimeDrivelog>> {
         let base_endpoint = self.endpoint()?;
-        let endpoint_str = format!("{}/{}/drivelog.json", base_endpoint.to_string(), device_uuid);
+        let endpoint_str = format!(
+            "{}/{}/drivelog.json",
+            base_endpoint.to_string(),
+            device_uuid
+        );
         let endpoint = Url::parse(&endpoint_str)?;
         // let endpoint = base_endpoint.join(format!("/{}/drivelog.json", device_uuid).as_str())?;
-        let response = self.0.client.get(endpoint)
-            .send()
-            .await?;
+        let response = self.0.client.get(endpoint).send().await?;
 
         let response_text = response.text().await?;
 
@@ -376,9 +385,9 @@ impl<'c> DevicesEndpoint<'c> {
         if v == json!({}) {
             return Ok(None);
         } else {
-            let json_output = serde_json::from_str::<FireboardRealtimeDrivelog>(response_text.as_str())?;
+            let json_output =
+                serde_json::from_str::<FireboardRealtimeDrivelog>(response_text.as_str())?;
             Ok(Some(json_output))
         }
     }
 }
-

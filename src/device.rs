@@ -1,7 +1,7 @@
 use bytes::Bytes;
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 
-use crate::{ fireboard_api::DegreeType, OFFLINE, ONLINE };
+use crate::{fireboard_api::DegreeType, constants::{OFFLINE, ONLINE}};
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 #[repr(u8)]

@@ -1,28 +1,32 @@
+//! # Fireboard Watcher
+//! 
+//! This module is responsible for watching the Fireboard API and updating the MQTT broker with the latest data
+//! as changes occur. It also handles the MQTT discovery process for new devices and channels.
+
 use rumqttc::v5::mqttbytes::v5::LastWill;
 use rumqttc::v5::mqttbytes::QoS;
 use tokio::sync::mpsc::Sender;
 
 use anyhow::Result;
 
-use log::{ debug, error, info, trace };
+use log::{debug, error, info, trace};
 
 use crate::config::Fb2MqttConfig;
-use crate::device::{ MQTTDiscoveryAvailabilityEntry, MQTTDiscoveryBinarySensor, MQTTDiscoveryDevice, MQTTDiscoverySensor };
+use crate::constants::{OFF, OFFLINE, ON, ONLINE};
+use crate::device::{
+    MQTTDiscoveryAvailabilityEntry, MQTTDiscoveryBinarySensor, MQTTDiscoveryDevice,
+    MQTTDiscoverySensor,
+};
 use crate::drive::DriveAttributes;
 use crate::fireboard_api::{DriveModeType, FireboardApiClient, FireboardApiDevice};
 use crate::mqtt_action::MQTTAction;
-use crate::{ OFFLINE, ONLINE };
+use crate::utils::f32_to_u8_pct;
 
-pub fn f32_to_u8_pct(value: f32) -> u8 {
-    f32::round(value * 100.0) as u8
-}
 
 pub struct FireboardWatcher {
     online_device_count: u8,
     fb_client: FireboardApiClient,
-
     tx: Sender<MQTTAction>,
-
     cfg: Fb2MqttConfig,
 }
 
@@ -30,8 +34,9 @@ impl FireboardWatcher {
     pub async fn new(cfg: &Fb2MqttConfig, tx: Sender<MQTTAction>) -> Result<FireboardWatcher> {
         let fb_client = FireboardApiClient::new(
             cfg.fireboardaccount_email.clone(),
-            cfg.fireboardaccount_password.clone()
-        ).await?;
+            cfg.fireboardaccount_password.clone(),
+        )
+        .await?;
         debug!("client authenticated successfully");
 
         let mut fb_watcher = FireboardWatcher {
@@ -53,11 +58,17 @@ impl FireboardWatcher {
     }
 
     pub fn get_discovery_sensor_base_topic(&self, device_identifier: &String) -> String {
-        format!("{}/sensor/{}", self.cfg.mqtt_discovery_topic, device_identifier)
+        format!(
+            "{}/sensor/{}",
+            self.cfg.mqtt_discovery_topic, device_identifier
+        )
     }
 
     pub fn get_discovery_binary_sensor_base_topic(&self, device_identifier: &String) -> String {
-        format!("{}/binary_sensor/{}", self.cfg.mqtt_discovery_topic, device_identifier)
+        format!(
+            "{}/binary_sensor/{}",
+            self.cfg.mqtt_discovery_topic, device_identifier
+        )
     }
 
     pub fn get_device_base_topic(&self, device_identifier: &String) -> String {
@@ -65,7 +76,10 @@ impl FireboardWatcher {
     }
 
     pub fn get_topic_device_availablility(&self, device_identifier: &String) -> String {
-        format!("{}/availability", self.get_device_base_topic(device_identifier))
+        format!(
+            "{}/availability",
+            self.get_device_base_topic(device_identifier)
+        )
     }
 
     pub fn get_topic_device_battery(&self, device_identifier: &String) -> String {
@@ -73,17 +87,24 @@ impl FireboardWatcher {
     }
 
     pub fn get_topic_device_battery_discovery(&self, device_identifier: &String) -> String {
-        format!("{}/battery/config", self.get_discovery_sensor_base_topic(device_identifier))
+        format!(
+            "{}/battery/config",
+            self.get_discovery_sensor_base_topic(device_identifier)
+        )
     }
 
     pub fn get_topic_device_channel(&self, device_identifier: &String, channel: &usize) -> String {
-        format!("{}/channel_{}", self.get_device_base_topic(device_identifier), channel)
+        format!(
+            "{}/channel_{}",
+            self.get_device_base_topic(device_identifier),
+            channel
+        )
     }
 
     pub fn get_topic_device_channel_availability(
         &self,
         device_identifier: &String,
-        channel: &usize
+        channel: &usize,
     ) -> String {
         format!(
             "{}/channel_{}/availability",
@@ -95,37 +116,63 @@ impl FireboardWatcher {
     pub fn get_topic_device_channel_discovery(
         &self,
         device_identifier: &String,
-        channel: &usize
+        channel: &usize,
     ) -> String {
-        format!("{}/channel_{}/config", self.get_discovery_sensor_base_topic(device_identifier), channel)
+        format!(
+            "{}/channel_{}/config",
+            self.get_discovery_sensor_base_topic(device_identifier),
+            channel
+        )
     }
 
     pub fn get_topic_device_drive_discovery(&self, device_identifier: &String) -> String {
-        format!("{}/drive/config", self.get_discovery_sensor_base_topic(device_identifier))
+        format!(
+            "{}/drive/config",
+            self.get_discovery_sensor_base_topic(device_identifier)
+        )
     }
+
     pub fn get_topic_device_drivemode_discovery(&self, device_identifier: &String) -> String {
-        format!("{}/drivemode/config", self.get_discovery_sensor_base_topic(device_identifier))
+        format!(
+            "{}/drivemode/config",
+            self.get_discovery_sensor_base_topic(device_identifier)
+        )
     }
+
     pub fn get_topic_device_drive_setpoint_discovery(&self, device_identifier: &String) -> String {
-        format!("{}/drive_setpoint/config", self.get_discovery_sensor_base_topic(device_identifier))
+        format!(
+            "{}/drive_setpoint/config",
+            self.get_discovery_sensor_base_topic(device_identifier)
+        )
     }
 
     pub fn get_topic_device_drive_lidpaused_discovery(&self, device_identifier: &String) -> String {
-        format!("{}/drive_lidpaused/config", self.get_discovery_binary_sensor_base_topic(device_identifier))
-    }    
+        format!(
+            "{}/drive_lidpaused/config",
+            self.get_discovery_binary_sensor_base_topic(device_identifier)
+        )
+    }
 
     pub fn get_topic_device_drive(&self, device_identifier: &String) -> String {
         format!("{}/drive", self.get_device_base_topic(device_identifier))
     }
 
     pub fn get_topic_device_drive_availability(&self, device_identifier: &String) -> String {
-        format!("{}/availability", self.get_topic_device_drive(device_identifier))
+        format!(
+            "{}/availability",
+            self.get_topic_device_drive(device_identifier)
+        )
     }
 
-    pub fn get_topic_device_drive_setpoint_availability(&self, device_identifier: &String) -> String {
-        format!("{}/setpoint_availability", self.get_topic_device_drive(device_identifier))
+    pub fn get_topic_device_drive_setpoint_availability(
+        &self,
+        device_identifier: &String,
+    ) -> String {
+        format!(
+            "{}/setpoint_availability",
+            self.get_topic_device_drive(device_identifier)
+        )
     }
-
 
     pub fn get_topic_device_drive_state(&self, device_identifier: &String) -> String {
         format!("{}/state", self.get_topic_device_drive(device_identifier))
@@ -136,15 +183,24 @@ impl FireboardWatcher {
     }
 
     pub fn get_topic_device_drive_setpoint(&self, device_identifier: &String) -> String {
-        format!("{}/setpoint", self.get_topic_device_drive(device_identifier))
+        format!(
+            "{}/setpoint",
+            self.get_topic_device_drive(device_identifier)
+        )
     }
 
     pub fn get_topic_device_drive_lidpaused(&self, device_identifier: &String) -> String {
-        format!("{}/lidpaused", self.get_topic_device_drive(device_identifier))
-    }    
+        format!(
+            "{}/lidpaused",
+            self.get_topic_device_drive(device_identifier)
+        )
+    }
 
     pub fn get_topic_device_drive_attributes(&self, device_identifier: &String) -> String {
-        format!("{}/attributes", self.get_topic_device_drive(device_identifier))
+        format!(
+            "{}/attributes",
+            self.get_topic_device_drive(device_identifier)
+        )
     }
 
     pub fn get_last_will(&self) -> LastWill {
@@ -168,7 +224,8 @@ impl FireboardWatcher {
                 retain: true,
                 payload: ONLINE.into(),
                 props: None,
-            }).await
+            })
+            .await
             .unwrap();
     }
 
@@ -177,12 +234,14 @@ impl FireboardWatcher {
 
         let parent_device = Some(MQTTDiscoveryDevice {
             configuration_url: Some(
-                format!("https://fireboard.io/devices/{}/edit/", device.id).to_string()
+                format!("https://fireboard.io/devices/{}/edit/", device.id).to_string(),
             ),
             connections: Some(vec![["mac".to_string(), device.device_log.mac_nic.clone()]]),
-            identifiers: Some(
-                vec![device.id.to_string(), device.hardware_id.clone(), device.uuid.clone()]
-            ),
+            identifiers: Some(vec![
+                device.id.to_string(),
+                device.hardware_id.clone(),
+                device.uuid.clone(),
+            ]),
             manufacturer: Some("Fireboard Labs".to_string()),
             model: Some(device.model.clone()),
             name: Some(device.title.clone()),
@@ -200,8 +259,8 @@ impl FireboardWatcher {
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
                 MQTTDiscoveryAvailabilityEntry::from(
-                    self.get_topic_device_availablility(&hardware_id)
-                )
+                    self.get_topic_device_availablility(&hardware_id),
+                ),
             ],
             device_class: Some("battery".to_string()),
             qos: 0,
@@ -218,7 +277,8 @@ impl FireboardWatcher {
                 retain: true,
                 payload: battery_discovery.into(),
                 props: None,
-            }).await
+            })
+            .await
             .unwrap();
 
         for channel in device.channels.clone() {
@@ -234,11 +294,11 @@ impl FireboardWatcher {
                 availability: vec![
                     MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
                     MQTTDiscoveryAvailabilityEntry::from(
-                        self.get_topic_device_availablility(&hardware_id)
+                        self.get_topic_device_availablility(&hardware_id),
                     ),
                     MQTTDiscoveryAvailabilityEntry::from(
-                        self.get_topic_device_channel_availability(&hardware_id, &channel.channel)
-                    )
+                        self.get_topic_device_channel_availability(&hardware_id, &channel.channel),
+                    ),
                 ],
                 suggested_unit_of_measurement: Some("°F".to_string()),
                 device_class: Some("temperature".to_string()),
@@ -257,7 +317,8 @@ impl FireboardWatcher {
                     retain: true,
                     payload: channel_discovery.into(),
                     props: None,
-                }).await
+                })
+                .await
                 .unwrap();
         }
 
@@ -271,11 +332,11 @@ impl FireboardWatcher {
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
                 MQTTDiscoveryAvailabilityEntry::from(
-                    self.get_topic_device_availablility(&hardware_id)
+                    self.get_topic_device_availablility(&hardware_id),
                 ),
                 MQTTDiscoveryAvailabilityEntry::from(
-                    self.get_topic_device_drive_availability(&hardware_id)
-                )
+                    self.get_topic_device_drive_availability(&hardware_id),
+                ),
             ],
             device_class: None,
             qos: 0,
@@ -289,14 +350,15 @@ impl FireboardWatcher {
         };
 
         self.tx
-        .send(MQTTAction::Publish {
-            topic: self.get_topic_device_drive_discovery(&hardware_id),
-            qos: QoS::AtMostOnce,
-            retain: true,
-            payload: drive_discovery.into(),
-            props: None,
-        }).await
-        .unwrap();
+            .send(MQTTAction::Publish {
+                topic: self.get_topic_device_drive_discovery(&hardware_id),
+                qos: QoS::AtMostOnce,
+                retain: true,
+                payload: drive_discovery.into(),
+                props: None,
+            })
+            .await
+            .unwrap();
 
         let drive_mode_id = format!("{}_mode", drive_id.clone());
         let drive_mode_discovery = MQTTDiscoverySensor {
@@ -306,17 +368,17 @@ impl FireboardWatcher {
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
                 MQTTDiscoveryAvailabilityEntry::from(
-                    self.get_topic_device_availablility(&hardware_id)
+                    self.get_topic_device_availablility(&hardware_id),
                 ),
                 MQTTDiscoveryAvailabilityEntry::from(
-                    self.get_topic_device_drive_availability(&hardware_id)
-                )
+                    self.get_topic_device_drive_availability(&hardware_id),
+                ),
             ],
             device_class: Some("enum".to_string()),
             options: Some(vec![
                 "off".to_string(),
                 "manual".to_string(),
-                "auto".to_string()
+                "auto".to_string(),
             ]),
             qos: 0,
             icon: Some("mdi:fan-alert".to_string()),
@@ -328,14 +390,15 @@ impl FireboardWatcher {
             ..MQTTDiscoverySensor::default()
         };
         self.tx
-        .send(MQTTAction::Publish {
-            topic: self.get_topic_device_drivemode_discovery(&hardware_id),
-            qos: QoS::AtMostOnce,
-            retain: true,
-            payload: drive_mode_discovery.into(),
-            props: None,
-        }).await
-        .unwrap();
+            .send(MQTTAction::Publish {
+                topic: self.get_topic_device_drivemode_discovery(&hardware_id),
+                qos: QoS::AtMostOnce,
+                retain: true,
+                payload: drive_mode_discovery.into(),
+                props: None,
+            })
+            .await
+            .unwrap();
 
         let drive_setpoint_id = format!("{}_setpoint", drive_id.clone());
         let drive_setpoint_discovery = MQTTDiscoverySensor {
@@ -345,13 +408,13 @@ impl FireboardWatcher {
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
                 MQTTDiscoveryAvailabilityEntry::from(
-                    self.get_topic_device_availablility(&hardware_id)
+                    self.get_topic_device_availablility(&hardware_id),
                 ),
                 MQTTDiscoveryAvailabilityEntry::from(
-                    self.get_topic_device_drive_availability(&hardware_id)
+                    self.get_topic_device_drive_availability(&hardware_id),
                 ),
                 MQTTDiscoveryAvailabilityEntry::from(
-                    self.get_topic_device_drive_setpoint_availability(&hardware_id)
+                    self.get_topic_device_drive_setpoint_availability(&hardware_id),
                 ),
             ],
             icon: Some("mdi:thermometer-auto".to_string()),
@@ -370,7 +433,8 @@ impl FireboardWatcher {
                 retain: true,
                 payload: drive_setpoint_discovery.into(),
                 props: None,
-            }).await
+            })
+            .await
             .unwrap();
 
         let drive_lidpaused_id = format!("{}_lidpaused", drive_id.clone());
@@ -381,11 +445,11 @@ impl FireboardWatcher {
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
                 MQTTDiscoveryAvailabilityEntry::from(
-                    self.get_topic_device_availablility(&hardware_id)
+                    self.get_topic_device_availablility(&hardware_id),
                 ),
                 MQTTDiscoveryAvailabilityEntry::from(
-                    self.get_topic_device_drive_availability(&hardware_id)
-                )
+                    self.get_topic_device_drive_availability(&hardware_id),
+                ),
             ],
             // icon: Some("mdi:fan-alert".to_string()),
             // device_class: Some("opening".to_string()),
@@ -401,7 +465,8 @@ impl FireboardWatcher {
                 retain: true,
                 payload: drive_lidpaused_discovery.into(),
                 props: None,
-            }).await
+            })
+            .await
             .unwrap();
     }
 
@@ -438,7 +503,8 @@ impl FireboardWatcher {
                             OFFLINE.into()
                         },
                         props: None,
-                    }).await
+                    })
+                    .await
                     .unwrap();
 
                 // update mqtt discovery
@@ -457,7 +523,8 @@ impl FireboardWatcher {
                             retain: true,
                             payload: format!("{batt_percentage}").into(),
                             props: None,
-                        }).await
+                        })
+                        .await
                         .unwrap();
                 }
 
@@ -465,10 +532,8 @@ impl FireboardWatcher {
                     // do channel temperatures
                     for channel in device.channels {
                         // let unique_id = format!("{}_{}", device.hardware_id.clone(), channel.channel);
-                        let channel_topic = self.get_topic_device_channel(
-                            &hardware_id,
-                            &channel.channel
-                        );
+                        let channel_topic =
+                            self.get_topic_device_channel(&hardware_id, &channel.channel);
 
                         // channel availability
                         self.tx
@@ -482,7 +547,8 @@ impl FireboardWatcher {
                                     OFFLINE.into()
                                 },
                                 props: None,
-                            }).await
+                            })
+                            .await
                             .unwrap();
 
                         if let Some(templog) = &channel.last_templog {
@@ -494,7 +560,8 @@ impl FireboardWatcher {
                                     retain: false,
                                     payload: templog.temp.to_string().into(),
                                     props: None,
-                                }).await
+                                })
+                                .await
                                 .unwrap();
                         } else {
                             // channel is offline
@@ -505,16 +572,19 @@ impl FireboardWatcher {
                                     retain: false,
                                     payload: "".into(),
                                     props: None,
-                                }).await
+                                })
+                                .await
                                 .unwrap();
                         }
                     }
                 }
 
                 if drive_enabled {
-                    let rt_drivelog_request = self.fb_client
+                    let rt_drivelog_request = self
+                        .fb_client
                         .devices()
-                        .get_realtime_drivelog(device.uuid).await;
+                        .get_realtime_drivelog(device.uuid)
+                        .await;
                     if let Ok(rt_drivelog) = rt_drivelog_request {
                         if let Some(drivelog) = &rt_drivelog {
                             // drive not available
@@ -525,7 +595,8 @@ impl FireboardWatcher {
                                     retain: false,
                                     payload: ONLINE.into(),
                                     props: None,
-                                }).await
+                                })
+                                .await
                                 .unwrap();
 
                             debug!("drivelog: {:?}", drivelog);
@@ -547,7 +618,8 @@ impl FireboardWatcher {
                                     retain: false,
                                     payload: state.to_string().into(),
                                     props: None,
-                                }).await
+                                })
+                                .await
                                 .unwrap();
 
                             let drive_attributes = DriveAttributes {
@@ -564,17 +636,21 @@ impl FireboardWatcher {
                                         retain: false,
                                         payload: drivelog.setpoint.to_string().into(),
                                         props: None,
-                                    }).await
+                                    })
+                                    .await
                                     .unwrap();
                                 self.tx
                                     .send(MQTTAction::Publish {
-                                        topic: self.get_topic_device_drive_setpoint_availability(&hardware_id),
+                                        topic: self.get_topic_device_drive_setpoint_availability(
+                                            &hardware_id,
+                                        ),
                                         qos: QoS::AtMostOnce,
                                         retain: false,
                                         payload: ONLINE.into(),
                                         props: None,
-                                    }).await
-                                    .unwrap();                                
+                                    })
+                                    .await
+                                    .unwrap();
                             } else {
                                 self.tx
                                     .send(MQTTAction::Publish {
@@ -583,17 +659,21 @@ impl FireboardWatcher {
                                         retain: false,
                                         payload: "".into(),
                                         props: None,
-                                    }).await
+                                    })
+                                    .await
                                     .unwrap();
                                 self.tx
-                                .send(MQTTAction::Publish {
-                                    topic: self.get_topic_device_drive_setpoint_availability(&hardware_id),
-                                    qos: QoS::AtMostOnce,
-                                    retain: false,
-                                    payload: OFFLINE.into(),
-                                    props: None,
-                                }).await
-                                .unwrap();   
+                                    .send(MQTTAction::Publish {
+                                        topic: self.get_topic_device_drive_setpoint_availability(
+                                            &hardware_id,
+                                        ),
+                                        qos: QoS::AtMostOnce,
+                                        retain: false,
+                                        payload: OFFLINE.into(),
+                                        props: None,
+                                    })
+                                    .await
+                                    .unwrap();
                             }
                             // self.tx
                             // .send(MQTTAction::Publish {
@@ -606,14 +686,15 @@ impl FireboardWatcher {
                             // .unwrap();
 
                             self.tx
-                            .send(MQTTAction::Publish {
-                                topic: self.get_topic_device_drive_lidpaused(&hardware_id),
-                                qos: QoS::AtMostOnce,
-                                retain: false,
-                                payload: if drivelog.lidpaused { "ON" } else { "OFF" }.into(),
-                                props: None,
-                            }).await
-                            .unwrap();
+                                .send(MQTTAction::Publish {
+                                    topic: self.get_topic_device_drive_lidpaused(&hardware_id),
+                                    qos: QoS::AtMostOnce,
+                                    retain: false,
+                                    payload: if drivelog.lidpaused { ON } else { OFF }.into(),
+                                    props: None,
+                                })
+                                .await
+                                .unwrap();
 
                             self.tx
                                 .send(MQTTAction::Publish {
@@ -622,7 +703,8 @@ impl FireboardWatcher {
                                     retain: false,
                                     payload: drive_attributes.into(),
                                     props: None,
-                                }).await
+                                })
+                                .await
                                 .unwrap();
 
                             self.tx
@@ -632,7 +714,8 @@ impl FireboardWatcher {
                                     retain: false,
                                     payload: modetype.to_string().into(),
                                     props: None,
-                                }).await
+                                })
+                                .await
                                 .unwrap();
                         } else {
                             // drive not available
@@ -643,7 +726,8 @@ impl FireboardWatcher {
                                     retain: false,
                                     payload: OFFLINE.into(),
                                     props: None,
-                                }).await
+                                })
+                                .await
                                 .unwrap();
 
                             self.tx
@@ -653,7 +737,8 @@ impl FireboardWatcher {
                                     retain: false,
                                     payload: "".into(),
                                     props: None,
-                                }).await
+                                })
+                                .await
                                 .unwrap();
 
                             self.tx
@@ -663,7 +748,8 @@ impl FireboardWatcher {
                                     retain: false,
                                     payload: "".into(),
                                     props: None,
-                                }).await
+                                })
+                                .await
                                 .unwrap();
                         }
                     } else if let Err(err) = rt_drivelog_request {
@@ -677,7 +763,8 @@ impl FireboardWatcher {
                             retain: true,
                             payload: OFFLINE.into(),
                             props: None,
-                        }).await
+                        })
+                        .await
                         .unwrap();
                 }
             }

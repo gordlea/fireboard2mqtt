@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DriveAttributes {
@@ -15,4 +15,3 @@ impl Into<Bytes> for DriveAttributes {
         Bytes::from(json)
     }
 }
-
