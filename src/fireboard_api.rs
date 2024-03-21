@@ -71,7 +71,7 @@ pub struct FireboardDeviceLog {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardDeviceChannel {
     pub created: DateTime<Utc>,
-    pub alerts: Vec<()>,
+    // pub alerts: Vec<()>,
     pub enabled: bool,
     pub id: usize,
     pub sessionid: usize,
