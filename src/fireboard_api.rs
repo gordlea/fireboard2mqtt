@@ -30,7 +30,6 @@ pub struct FireboardDeviceList {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardApiDevice {
     pub id: usize,
-    #[serde(rename(serialize = "UUID", deserialize = "uuid"))]
     pub uuid: String,
     pub title: String,
     pub created: DateTime<Utc>,
@@ -349,16 +348,24 @@ impl<'c> DevicesEndpoint<'c> {
 
         let response = request_attempt.unwrap();
 
+        
+
         if !response.status().is_success() {
-            error!("Error getting devices: {}", response.status().to_string());
+            let status = response.status().to_string();
+            error!("Error getting devices: {}", status);
+            error!("{}", response.text().await?);
             return Err(anyhow::anyhow!(
                 "Error getting devices: {}",
-                response.status().to_string()
+                status
             ));
         } else {
-            let devices = response.json::<Vec<FireboardApiDevice>>().await;
+            let response_text = response.text().await?;
+            // let v: Value = serde_json::from_str(response_text.as_str())?;
+            let devices 
+                = serde_json::from_str::<Vec<FireboardApiDevice>>(response_text.as_str());
+            // let devices = response.json::<Vec<FireboardApiDevice>>().await;
             if let Err(e) = devices {
-                error!("Error parsings devices: {}", e.to_string());
+                error!("Error parsing devices: {} from response body: {}", e.to_string(), response_text);
                 return Err(e.into());
             }
             return Ok(devices.unwrap());
