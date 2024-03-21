@@ -9,10 +9,6 @@ pretty_print_json_logs = []
 
 [dependencies]
 anyhow = "1.0.80"
-chrono = { version = "0.4.31", default-features = false, features = [
-    "std",
-    "serde"
-]}
 env_struct = "0.1.4"
 tokio = { version = "1", features = ["full"] }
 log = "0.4.21"

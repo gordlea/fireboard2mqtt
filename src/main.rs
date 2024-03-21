@@ -31,8 +31,6 @@ async fn main() -> Result<()> {
 
     let cfg = load_cfg_from_env();
 
-    // let env_config = load_cfg_from_env();
-
     debug!("config loaded successfully");
 
     let (tx_mqtt, mut rx_mqtt) = mpsc::channel::<MQTTAction>(16);

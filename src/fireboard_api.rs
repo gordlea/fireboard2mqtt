@@ -1,5 +1,4 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use log::error;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
@@ -32,18 +31,11 @@ pub struct FireboardApiDevice {
     pub id: usize,
     pub uuid: String,
     pub title: String,
-    pub created: DateTime<Utc>,
     pub hardware_id: String,
-    pub fbj_version: String,
-    pub fbn_version: String,
-    pub fbu_version: String,
     pub version: String,
-    pub probe_config: String,
-    pub last_drivelog: Option<DriveLog>,
     pub channel_count: usize,
     pub degreetype: DegreeType,
     pub model: String,
-    pub active: bool,
     pub channels: Vec<FireboardDeviceChannel>,
     pub latest_temps: Vec<FireboardTemps>,
     pub device_log: FireboardDeviceLog,
@@ -51,30 +43,16 @@ pub struct FireboardApiDevice {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardDeviceLog {
-    #[serde(alias = "cpuUsage")]
-    pub cpu_usage: String,
-    pub nightmode: Option<bool>,
     #[serde(alias = "macNIC")]
     pub mac_nic: String,
-    // linkquality: usize,
-    // #[serde(alias = "linkquality")]
     #[serde(alias = "onboardTemp")]
     pub onboard_temp: f32,
     #[serde(alias = "vBattPer")]
     pub v_batt_per: f32,
-    #[serde(alias = "vBattPerRaw")]
-    pub v_batt_per_raw: f32,
-    #[serde(alias = "vBatt")]
-    pub v_batt: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardDeviceChannel {
-    pub created: DateTime<Utc>,
-    // pub alerts: Vec<()>,
-    pub enabled: bool,
-    pub id: usize,
-    pub sessionid: usize,
     pub channel: usize,
     pub channel_label: String,
     pub last_templog: Option<FireboardTemps>,
@@ -83,135 +61,26 @@ pub struct FireboardDeviceChannel {
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub struct FireboardTemps {
     pub temp: f32,
-    pub channel: usize,
-    pub degreetype: DegreeType,
-    pub created: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardRealtimeDrivelog {
     #[serde(deserialize_with = "drivemode_from_string")]
     pub modetype: DriveModeType,
-    pub created: DateTime<Utc>,
-    pub device_id: usize,
-    pub device_uuid: String,
     pub setpoint: f32,
     pub lidpaused: bool,
-    pub created_ms: f32,
-    #[serde(deserialize_with = "bool_from_int")]
-    pub userinitiated: bool,
-    pub degreetype: DegreeType,
-    pub powermode: String,
     pub tiedchannel: usize,
     pub driveper: f32,
-}
-
-fn bool_from_int<'de, D>(deserializer: D) -> Result<bool, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = usize::deserialize(deserializer)?;
-    Ok(s == 1)
 }
 
 fn drivemode_from_string<'de, D>(deserializer: D) -> Result<DriveModeType, D::Error>
 where
     D: Deserializer<'de>,
 {
-    // eprintln!("drivemode_from_string");
     let s = String::deserialize(deserializer)?;
-    // eprintln!("drivemode_from_string: {}", s);
     Ok(DriveModeType::from(s))
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DriveLog {
-    pub created: DateTime<Utc>,
-    pub currenttemp: f32,
-    pub degreetype: DegreeType,
-    pub device_id: usize,
-    pub driveper: f32,
-    pub drivetype: u8,
-    pub id: usize,
-
-    // #[serde(deserialize_with = "deserialize_jsonraw")]
-    pub jsonraw: String,
-    /// 0 is off, 1 is manual, 2 is auto
-    pub modetype: DriveModeType,
-
-    // I don't know what these are
-    /// Seconds since program started
-    pub pg_elapsed: usize,
-
-    pub pg_state: ProgramState,
-    pub pg_step_index: Option<usize>,
-
-    /// progress through the current step? no way to tell what the max is so it's kinda useless
-    pub pg_step_position: usize,
-    pub pg_step_uuid: Option<String>,
-    pub pg_uuid: Option<String>,
-
-    pub powermode: u8,
-    pub profiletype: u8,
-    pub setpoint: f32,
-    pub tiedchannel: usize,
-    pub userinitiated: bool,
-    pub var1: f32,
-    pub var2: f32,
-    pub var3: f32,
-    pub vbatt: f32,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DriveModeRaw {
-    pub pt: usize,
-    #[serde(alias = "pErrSum")]
-    pub p_err_sum: f32,
-    #[serde(alias = "pOut")]
-    pub p_out: f32,
-    pub dr: usize,
-    pub dt: usize,
-    pub sp: usize,
-    #[serde(alias = "pLastTime")]
-    pub p_last_time: usize,
-    pub c: DateTime<Utc>,
-    pub d: f32,
-    pub mt: usize,
-    #[serde(alias = "pStable")]
-    pub p_stable: bool,
-    #[serde(alias = "pKd")]
-    pub p_kd: f32,
-    pub vb: f32,
-    #[serde(alias = "fanSpeedTarget")]
-    pub fan_speed_target: f32,
-    pub tc: usize,
-    #[serde(alias = "lidPaused")]
-    pub lid_paused: bool,
-    #[serde(alias = "pKi")]
-    pub p_ki: f32,
-    pub p: f32,
-    pub ct: usize,
-    #[serde(alias = "pLastErr")]
-    pub p_last_err: f32,
-    #[serde(alias = "pKp")]
-    pub p_kp: f32,
-    pub u: bool,
-    pub programinfo: ProgramInfoRaw,
-    pub v1: f32,
-    pub v2: f32,
-    pub v3: f32,
-    pub pm: usize,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ProgramInfoRaw {
-    pub elapsed: usize,
-    pub stepuuid: Option<String>,
-    pub lastupdated: DateTime<Utc>,
-    pub state: usize,
-    pub uuid: Option<String>,
-    pub stepposition: usize,
-}
 
 #[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone)]
 #[repr(u8)]
