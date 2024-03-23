@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::{DateTime, Local};
 use log::error;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
@@ -19,7 +20,7 @@ pub struct FireboardCloudApiAuthRequest {
 pub struct FireboardCloudApiAuthResponse {
     pub(crate) key: String,
 }
-// const FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FireboardDeviceList {
@@ -43,6 +44,7 @@ pub struct FireboardApiDevice {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardDeviceLog {
+    pub date: DateTime<Local>,
     #[serde(alias = "macNIC")]
     pub mac_nic: String,
     #[serde(alias = "onboardTemp")]

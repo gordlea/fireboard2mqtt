@@ -2,7 +2,7 @@
 //! 
 //! This module is responsible for watching the Fireboard API and updating the MQTT broker with the latest data
 //! as changes occur. It also handles the MQTT discovery process for new devices and channels.
-
+use chrono::Local;
 use rumqttc::v5::mqttbytes::v5::LastWill;
 use rumqttc::v5::mqttbytes::QoS;
 use tokio::sync::mpsc::Sender;
@@ -12,7 +12,7 @@ use anyhow::Result;
 use log::{debug, error, info, trace};
 
 use crate::config::Fb2MqttConfig;
-use crate::constants::{OFF, OFFLINE, ON, ONLINE};
+use crate::constants::{FIREBOARD_DEVICELOG_UPDATE_INTERVAL_MINUTES, OFF, OFFLINE, ON, ONLINE};
 use crate::device::{
     MQTTDiscoveryAvailabilityEntry, MQTTDiscoveryBinarySensor, MQTTDiscoveryDevice,
     MQTTDiscoverySensor,
@@ -487,9 +487,20 @@ impl FireboardWatcher {
 
             for device in returned_devices {
                 let hardware_id = device.hardware_id.clone();
+
                 debug!("found device: {:?}", hardware_id);
+
                 let latest_temps = device.latest_temps.clone();
-                let device_online = !latest_temps.is_empty();
+                let device_online = {
+                    let has_latest_temps = !latest_temps.is_empty();
+                    if has_latest_temps {
+                        true
+                    } else {
+                        let now = Local::now();
+                        let diff = now - device.device_log.date;
+                        diff.num_minutes() < FIREBOARD_DEVICELOG_UPDATE_INTERVAL_MINUTES
+                    }
+                };
 
                 // set device availability
                 self.tx
