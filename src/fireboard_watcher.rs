@@ -290,7 +290,7 @@ impl FireboardWatcher {
             let channel_discovery = MQTTDiscoverySensor {
                 unique_id: channel_id.clone(),
                 object_id: channel_id,
-                name: Some(format!("Channel {}", channel.channel)),
+                name: Some(channel.channel_label),
                 availability: vec![
                     MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
                     MQTTDiscoveryAvailabilityEntry::from(
