@@ -185,7 +185,7 @@ checksum = "25cbce373ec4653f1a01a31e8a5e5ec0c622dc27ff9c4e6606eefef5cbbed4a5"
 
 [[package]]
 name = "fireboard2mqtt"
-version = "3.0.0-beta.10"
+version = "3.0.0-beta.11"
 dependencies = [
  "anyhow",
  "bytes",
