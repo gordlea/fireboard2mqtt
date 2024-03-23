@@ -456,6 +456,8 @@ impl FireboardWatcher {
             qos: 0,
             state_topic: self.get_topic_device_drive_lidpaused(&hardware_id),
             device: parent_device.clone(),
+            payload_on: Some(ON.into()),
+            payload_off: Some(OFF.into()),
             ..MQTTDiscoveryBinarySensor::default()
         };
         self.tx
