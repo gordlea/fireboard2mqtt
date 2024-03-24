@@ -18,7 +18,9 @@ Due to the 200 req/hr request limit on the fireboard api, this only updates temp
 
 ### Running as a home-assistant addon
 
-// Work in progress
+Click the following to add this the repo this addon is a part of to your home assistant instance: [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fgordlea%2Fhome-assistant-addons)
+
+Then install the addon.
 
 ### Running as a standalone service
 
@@ -31,7 +33,7 @@ Due to the 200 req/hr request limit on the fireboard api, this only updates temp
 
 ### Home Assistant Addon
 
-// Work in progress
+Simply enter your fireboard account email address and password to the addon config screen.
 
 ### Standalone or Development
 

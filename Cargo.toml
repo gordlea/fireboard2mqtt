@@ -2,6 +2,7 @@
 name = "fireboard2mqtt"
 version = "3.0.0-beta.11"
 edition = "2021"
+publish = false
 
 [features]
 default = []
