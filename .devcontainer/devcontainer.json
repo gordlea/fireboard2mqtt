@@ -1,33 +1,35 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/rust
 {
-    "name": "Home Assistant Add-ons",
-    "image": "ghcr.io/home-assistant/devcontainer:addons",
-    "appPort": [
-        "7123:8123",
-        "7357:4357"
-    ],
-    "postStartCommand": "bash devcontainer_bootstrap",
-    "runArgs": [
-        "-e",
-        "GIT_EDITOR=code --wait",
-        "--privileged"
-    ],
-    "containerEnv": {
-        "WORKSPACE_DIRECTORY": "${containerWorkspaceFolder}"
-    },
-    "extensions": [
-        "timonwong.shellcheck",
-        "esbenp.prettier-vscode"
-    ],
-    "settings": {
-        "terminal.integrated.profiles.linux": {
-            "zsh": {
-                "path": "/usr/bin/zsh"
-            }
-        },
-        "terminal.integrated.defaultProfile.linux": "zsh",
-        "editor.formatOnPaste": false,
-        "editor.formatOnSave": true,
-        "editor.formatOnType": true,
-        "files.trimTrailingWhitespace": true
-    }
+	"name": "Rust",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"image": "mcr.microsoft.com/devcontainers/rust:1-1-bookworm",
+	"features": {
+		"ghcr.io/flexwie/devcontainer-features/op:1": {}
+	},
+
+	// Use 'mounts' to make the cargo cache persistent in a Docker Volume.apt 
+	// "mounts": [
+	// 	{
+	// 		"source": "devcontainer-cargo-cache-${devcontainerId}",
+	// 		"target": "/usr/local/cargo",
+	// 		"type": "volume"
+	// 	}
+	// ]
+
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "apt update && apt install -y direnv"
+
+	// Configure tool-specific properties.
+	// "customizations": {},
+
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
 }
+
