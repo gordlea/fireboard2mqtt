@@ -1,0 +1,9 @@
+target/
+logs/
+.github/
+.devcontainer/
+.vscode/
+*.Dockerfile
+*.png
+.env
+.envrc
