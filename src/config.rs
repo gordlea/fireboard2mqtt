@@ -16,6 +16,9 @@ env_struct! {
         pub fb2mqtt_fireboard_enable_drive = "false".to_string(),
         /// Will use `FB2MQTT_MQTT_URL`
         pub fb2mqtt_mqtt_url = "mqtt://localhost:1883".to_string(),
+
+
+
         /// Will use `FB2MQTT_MQTT_DISCOVERY_TOPIC`
         pub fb2mqtt_mqtt_discovery_topic = "homeassistant".to_string(),
         /// Will use `FB2MQTT_MQTT_BASE_TOPIC`
@@ -34,7 +37,6 @@ pub struct Fb2MqttConfig {
     pub fireboardaccount_email: String,
     pub fireboardaccount_password: String,
     pub fireboard_enable_drive: bool,
-    // pub mqtt_url: Url,
     pub mqtt_host: String,
     pub mqtt_port: u16,
     pub mqtt_discovery_topic: String,
