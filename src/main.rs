@@ -7,12 +7,12 @@ use human_bytes::human_bytes;
 use log::{debug, error, info, trace};
 use memory_stats::memory_stats;
 use rumqttc::v5::{AsyncClient, MqttOptions};
-use std::process;
-use std::sync::{atomic::AtomicBool, Arc};
+use std::{process, sync::{atomic::AtomicBool, Arc}};
 use tokio::{
     sync::mpsc,
     time::{self, sleep},
 };
+
 
 mod config;
 mod constants;
@@ -29,8 +29,7 @@ async fn main() -> Result<()> {
     let mut builder = Builder::from_env(Env::default());
     builder.target(env_logger::Target::Stdout);
     builder.init();
-    let term = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term))?;
+
     
     let cfg = load_cfg_from_env();
 

@@ -17,7 +17,6 @@ env_logger = "0.11.3"
 url = "2.5.0"
 serde = { version = "1.0", features = ["derive"]}
 serde_json = { version = "1.0" }
-signal-hook = "0.3.17"
 rumqttc = "0.24.0"
 bytes = "1.5"
 memory-stats = "1.1.0"
