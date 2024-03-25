@@ -7,7 +7,7 @@ use human_bytes::human_bytes;
 use log::{debug, error, info, trace};
 use memory_stats::memory_stats;
 use rumqttc::v5::{AsyncClient, MqttOptions};
-use std::{process, sync::{atomic::AtomicBool, Arc}};
+use std::process;
 use tokio::{
     sync::mpsc,
     time::{self, sleep},
