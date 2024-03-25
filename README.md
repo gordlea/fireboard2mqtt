@@ -35,7 +35,15 @@ Then install the addon.
 
 Simply enter your fireboard account email address and password to the addon config screen.
 
-### Standalone or Development
+### Docker Standalone
+
+If you are running Home Assistant core only (without addon support), you can run this as a simple standalone docker container.
+
+To do so, create an .env file with the config from below in it, and run the following command:
+
+`docker run --env-file=.env -t gordlea/fireboard2mqtt`
+
+### Bare Metal Standalone or Development
 
 Configuration is done via environmental variables. 
 
