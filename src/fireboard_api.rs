@@ -189,7 +189,7 @@ impl FireboardApiClient {
             return Ok(FireboardApiClient { api_base, client });
         } else {
             return Err(anyhow::anyhow!(
-                "Error authenticating with Fireboard API! Check your username and password."
+                "Error authenticating with Fireboard API! Check your username and password. {:?}", auth_result.unwrap_err()
             ));
         }
     }
