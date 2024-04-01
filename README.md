@@ -4,7 +4,7 @@ A simple service to bring your Fireboard wireless thermometer into home assistan
 
 
 
-This is also available as a [Home Assistant](https://www.home-assistant.io/) addon [here](https://github.com/gordlea/home-assistant-addons/tree/main/fireboard2mqtt).
+This is also available as a [Home Assistant](https://www.home-assistant.io/) addon [here](https://github.com/gordlea/home-assistant-addons/).
 
 ## Requirements
 
