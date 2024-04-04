@@ -1,83 +1,128 @@
 use std::process;
-
-use env_struct::env_struct;
-use log::error;
+use serde::Serialize;
+use twelf::{config, Layer};
+use log::{debug, error, info};
 use url::Url;
 
-env_struct! {
-    #[derive(Debug, Clone)] // (Optional) Not needed, just to
-    //  show that we keep derive & other macros intact
-    pub struct FireboardConfigEnv { // vis modifiers work too
-        /// Will use `FB2MQTT_FIREBOARDACCOUNT_EMAIL`
-        pub fb2mqtt_fireboardaccount_email = "".to_string(),
-        /// Will use `FB2MQTT_FIREBOARDACCOUNT_PASSWORD`
-        pub fb2mqtt_fireboardaccount_password = "".to_string(),
-        /// Will use `FB2MQTT_FIREBOARD_ENABLE_DRIVE`
-        pub fb2mqtt_fireboard_enable_drive = "false".to_string(),
-        /// Will use `FB2MQTT_MQTT_URL`
-        pub fb2mqtt_mqtt_url = "mqtt://localhost:1883".to_string(),
-
-
-
-        /// Will use `FB2MQTT_MQTT_DISCOVERY_TOPIC`
-        pub fb2mqtt_mqtt_discovery_topic = "homeassistant".to_string(),
-        /// Will use `FB2MQTT_MQTT_BASE_TOPIC`
-        pub fb2mqtt_mqtt_base_topic = "fireboard2mqtt".to_string(),
-        /// Will use `FB2MQTT_MQTT_USERNAME`
-        pub fb2mqtt_mqtt_username = "".to_string(),
-        /// Will use `FB2MQTT_MQTT_PASSWORD`
-        pub fb2mqtt_mqtt_password = "".to_string(),
-        /// Will use `FB2MQTT_MQTT_CLIENTID`
-        pub fb2mqtt_mqtt_clientid = "fireboard2mqtt".to_string(),
+struct ConfigDefaults {}
+impl ConfigDefaults {
+    pub fn fireboard_enable_drive_default() -> bool {
+        false
+    }
+    pub fn mqtt_url_default() -> String {
+        "mqtt://localhost:1883".to_string()
+    }
+    pub fn mqtt_discovery_topic_default() -> String {
+        "homeassistant".to_string()
+    }
+    pub fn mqtt_base_topic_default() -> String {
+        "fireboard2mqtt".to_string()
+    }
+    pub fn mqtt_clientid_default() -> String {
+        "fireboard2mqtt".to_string()
+    }
+    pub fn none_default() -> Option<String> {
+        None
     }
 }
 
-#[derive(Debug, Clone)]
+#[config]
+#[derive(Debug, Clone, Default)] // (Optional) Not needed, just to
+//  show that we keep derive & other macros intact
+pub struct FireboardConfigEnv { // vis modifiers work too
+    /// Will use `FB2MQTT_FIREBOARDACCOUNT_EMAIL`
+    pub fireboardaccount_email: Option<String>,
+    /// Will use `FB2MQTT_FIREBOARDACCOUNT_PASSWORD`
+    pub fireboardaccount_password: Option<String>,
+    /// Will use `FB2MQTT_FIREBOARD_ENABLE_DRIVE`
+    #[serde(default = "ConfigDefaults::fireboard_enable_drive_default")]
+    pub fireboard_enable_drive: bool,
+    /// Will use `FB2MQTT_MQTT_URL`
+    #[serde(default = "ConfigDefaults::mqtt_url_default")]
+    pub mqtt_url: String,
+
+    /// Will use `FB2MQTT_MQTT_DISCOVERY_TOPIC`
+    #[serde(default = "ConfigDefaults::mqtt_discovery_topic_default")]
+    pub mqtt_discovery_topic: String,
+    /// Will use `FB2MQTT_MQTT_BASE_TOPIC`
+    #[serde(default = "ConfigDefaults::mqtt_base_topic_default")]
+    pub mqtt_base_topic: String,
+
+
+    /// Will use `FB2MQTT_MQTT_USERNAME`
+    #[serde(default = "ConfigDefaults::none_default")]
+    pub mqtt_username: Option<String>,
+    /// Will use `FB2MQTT_MQTT_PASSWORD`
+    #[serde(default = "ConfigDefaults::none_default")]
+    pub mqtt_password: Option<String>,
+    /// Will use `FB2MQTT_MQTT_CLIENTID`
+    #[serde(default = "ConfigDefaults::mqtt_clientid_default")]
+    pub mqtt_clientid: String,
+}
+
+// impl Default for FireboardConfigEnv {
+//     fn default() -> Self {
+//         FireboardConfigEnv {
+//             fireboardaccount_email: None,
+//             fireboardaccount_password: None,
+//             fireboard_enable_drive: false,
+//             mqtt_url: "mqtt://localhost:1883".to_string(),
+//             mqtt_discovery_topic: "homeassistant".to_string(),
+//             mqtt_base_topic: "fireboard2mqtt".to_string(),
+//             mqtt_username: None,
+//             mqtt_password: None,
+//             mqtt_clientid: "fireboard2mqtt".to_string(),
+//         }
+//     }
+// 
+// }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MqttCredentials {
+    pub username: String,
+    #[serde(skip_serializing)]
+    pub password: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct Fb2MqttConfig {
     pub fireboardaccount_email: String,
+    #[serde(skip_serializing)]
     pub fireboardaccount_password: String,
     pub fireboard_enable_drive: bool,
     pub mqtt_host: String,
     pub mqtt_port: u16,
     pub mqtt_discovery_topic: String,
     pub mqtt_base_topic: String,
-    pub mqtt_credentials: Option<(String, String)>,
+    pub mqtt_credentials: Option<MqttCredentials>,
     pub mqtt_clientid: String,
 }
 
 pub fn load_cfg_from_env() -> Fb2MqttConfig {
-    let loaded_env_config = FireboardConfigEnv::load_from_env();
-
-    // if let Err(env_config_err) = loaded_env_config {
-    //     error!("Error loading config: {:?}", env_config_err);
-    //     process::exit(1);
-    // }
+    debug!("loading config from env");
+    let loaded_env_config = FireboardConfigEnv::with_layers(&[Layer::Env(Some("FB2MQTT_".to_string()))]).unwrap();
+    
     let cfg = loaded_env_config;
     let mut cfg_load_error = false;
-    if cfg.fb2mqtt_fireboardaccount_email.is_empty() {
+    if cfg.fireboardaccount_email.is_none() {
         error!("missing required env var FB2MQTT_FIREBOARDACCOUNT_EMAIL");
         cfg_load_error = true;
     }
 
-    if cfg.fb2mqtt_fireboardaccount_password.is_empty() {
+    if cfg.fireboardaccount_password.is_none() {
         error!("missing required env var FB2MQTT_FIREBOARDACCOUNT_PASSWORD");
         cfg_load_error = true;
     }
 
-    if cfg.fb2mqtt_mqtt_username.is_empty() {
-        error!("missing required env var FB2MQTT_MQTT_USERNAME");
-        cfg_load_error = true;
+    if cfg.mqtt_username.is_none() {
+        eprintln!("cfg.fb2mqtt_mqtt_username: {:?}", cfg.mqtt_username);
+        info!("missing or empty env var FB2MQTT_MQTT_USERNAME, mqtt will operate in anonymous mode")
     }
 
-    if cfg.fb2mqtt_mqtt_password.is_empty() {
-        error!("missing required env var FB2MQTT_MQTT_PASSWORD");
-        cfg_load_error = true;
-    }
-
-    let parsed_url = Url::parse(&cfg.fb2mqtt_mqtt_url);
+    let parsed_url = Url::parse(&cfg.mqtt_url);
 
     if let Err(err) = parsed_url {
-        error!("Error parsing mqtt url {}: {}", cfg.fb2mqtt_mqtt_url, err);
+        error!("Error parsing mqtt url {}: {}", cfg.mqtt_url, err);
         cfg_load_error = true;
     }
 
@@ -88,22 +133,22 @@ pub fn load_cfg_from_env() -> Fb2MqttConfig {
     let mqtt_url = parsed_url.unwrap();
 
     Fb2MqttConfig {
-        fireboardaccount_email: cfg.fb2mqtt_fireboardaccount_email,
-        fireboardaccount_password: cfg.fb2mqtt_fireboardaccount_password,
+        fireboardaccount_email: cfg.fireboardaccount_email.unwrap().to_string(),
+        fireboardaccount_password: cfg.fireboardaccount_password.unwrap().to_string(),
         fireboard_enable_drive: cfg
-            .fb2mqtt_fireboard_enable_drive
-            .to_lowercase()
-            .parse::<bool>()
-            .unwrap_or(false),
+            .fireboard_enable_drive,
         mqtt_host: mqtt_url.host_str().unwrap().to_string(),
         mqtt_port: mqtt_url.port().unwrap_or(1883),
-        mqtt_base_topic: cfg.fb2mqtt_mqtt_base_topic,
-        mqtt_discovery_topic: cfg.fb2mqtt_mqtt_discovery_topic,
-        mqtt_credentials: if cfg.fb2mqtt_mqtt_username.is_empty() {
+        mqtt_base_topic: cfg.mqtt_base_topic.to_string(),
+        mqtt_discovery_topic: cfg.mqtt_discovery_topic.to_string(),
+        mqtt_credentials: if cfg.mqtt_username.is_none() {
             None
         } else {
-            Some((cfg.fb2mqtt_mqtt_username, cfg.fb2mqtt_mqtt_password))
+            Some(MqttCredentials {
+                username: cfg.mqtt_username.unwrap().to_string(),
+                password: cfg.mqtt_password.unwrap().to_string(),
+            })
         },
-        mqtt_clientid: cfg.fb2mqtt_mqtt_clientid,
+        mqtt_clientid: cfg.mqtt_clientid.to_string(),
     }
 }

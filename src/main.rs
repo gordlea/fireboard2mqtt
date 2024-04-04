@@ -32,7 +32,10 @@ async fn main() {
     
     let cfg = load_cfg_from_env();
 
-    debug!("config loaded successfully");
+    
+
+    debug!("config loaded successfully: {}", serde_json::to_string_pretty(&cfg).unwrap());
+    
 
     let (tx_mqtt, mut rx_mqtt) = mpsc::channel::<MQTTAction>(16);
     let mut watcher = {
@@ -46,13 +49,14 @@ async fn main() {
 
     let (mqtt_client, mut mqtt_eventloop) = {
         let cfg = cfg.clone();
+        info!("connecting to mqtt broker at {}:{} with clientId {}", cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_clientid);
         let mut mqtt_options = MqttOptions::new(
             cfg.mqtt_clientid.clone(),
             cfg.mqtt_host.clone(),
             cfg.mqtt_port,
         );
-        if let Some((username, password)) = cfg.mqtt_credentials {
-            mqtt_options.set_credentials(username, password);
+        if let Some(mqtt_credentials) = cfg.mqtt_credentials {
+            mqtt_options.set_credentials(mqtt_credentials.username, mqtt_credentials.password);
         }
         mqtt_options.set_last_will(watcher.get_last_will());
         AsyncClient::new(mqtt_options, 16)

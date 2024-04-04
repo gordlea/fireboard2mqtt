@@ -10,7 +10,6 @@ pretty_print_json_logs = []
 
 [dependencies]
 anyhow = "1.0.80"
-env_struct = "0.1.4"
 tokio = { version = "1", features = ["full"] }
 log = "0.4.21"
 env_logger = "0.11.3"
@@ -28,6 +27,7 @@ chrono = { version = "0.4.31", default-features = false, features = [
     "serde",
     "clock"
 ]}
+twelf = { version = "0.15.0", default-features = false, features = ["env", "default_trait"]}
 
 [profile.dev]
 debug = true
