@@ -9,9 +9,9 @@ pub struct DriveAttributes {
     pub lid_paused: bool,
 }
 
-impl Into<Bytes> for DriveAttributes {
-    fn into(self) -> Bytes {
-        let json = serde_json::to_string(&self).unwrap();
+impl From<DriveAttributes> for Bytes {
+    fn from(drive_attributes: DriveAttributes) -> Bytes {
+        let json = serde_json::to_string(&drive_attributes).unwrap();
         Bytes::from(json)
     }
 }

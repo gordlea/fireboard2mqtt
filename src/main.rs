@@ -1,7 +1,6 @@
 use crate::{
     config::load_cfg_from_env, fireboard_watcher::FireboardWatcher, mqtt_action::MQTTAction,
 };
-use anyhow::Result;
 use env_logger::{Builder, Env};
 use human_bytes::human_bytes;
 use log::{debug, error, info, trace};
@@ -25,7 +24,7 @@ mod utils;
 
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     let mut builder = Builder::from_env(Env::default());
     builder.target(env_logger::Target::Stdout);
     builder.init();
@@ -50,7 +49,7 @@ async fn main() -> Result<()> {
         let mut mqtt_options = MqttOptions::new(
             cfg.mqtt_clientid.clone(),
             cfg.mqtt_host.clone(),
-            cfg.mqtt_port.clone(),
+            cfg.mqtt_port,
         );
         if let Some((username, password)) = cfg.mqtt_credentials {
             mqtt_options.set_credentials(username, password);
@@ -107,11 +106,7 @@ async fn main() -> Result<()> {
     // watcher.init().await;
 
     tokio::spawn(async move {
-        let fb_update_loop_done = false;
-        // let mut sleep_duration = time::Duration::from_secs(30);
-        while !fb_update_loop_done {
-            // let mut update_interval = time::interval(time::Duration::from_secs(30));
-            // update_interval.tick().await;
+        loop {
             watcher.update().await;
             if let Some(usage) = memory_stats() {
                 info!(
@@ -130,7 +125,7 @@ async fn main() -> Result<()> {
                     debug!("drive support is enabled");
                     // if drive is enabled, then for each online device we need to make
                     // one extra call to the fireboard cloud api
-                    default_base_interval * (2 * 1)
+                    default_base_interval * 2
                 } else {
                     debug!("drive support not enabled");
                     // if drive is not enabled, then we only need to make one call total
@@ -149,8 +144,8 @@ async fn main() -> Result<()> {
         }
     });
 
-    let done = false;
-    while !done {
+
+    loop {
         let event = mqtt_eventloop.poll().await;
         match &event {
             Ok(v) => {
@@ -162,5 +157,4 @@ async fn main() -> Result<()> {
             }
         }
     }
-    Ok(())
 }

@@ -60,11 +60,9 @@ pub struct MQTTDiscoverySensor {
     pub expires_after: Option<u32>,
 }
 
-impl Into<Bytes> for MQTTDiscoverySensor {
-    fn into(self) -> Bytes {
-        // let mut sensor = json!(self);
-        let json = serde_json::to_string(&self).unwrap();
-        // sensor.as_object_mut().unwrap().insert("device".to_string(), json!({}));
+impl From<MQTTDiscoverySensor> for Bytes {
+    fn from(sensor: MQTTDiscoverySensor) -> Bytes {
+        let json = serde_json::to_string(&sensor).unwrap();
         Bytes::from(json)
     }
 }
@@ -122,10 +120,10 @@ pub struct MQTTDiscoveryBinarySensor {
     pub device: Option<MQTTDiscoveryDevice>,
 }
 
-impl Into<Bytes> for MQTTDiscoveryBinarySensor {
-    fn into(self) -> Bytes {
+impl From<MQTTDiscoveryBinarySensor> for Bytes {
+    fn from(sensor: MQTTDiscoveryBinarySensor) -> Bytes {
         // let mut sensor = json!(self);
-        let json = serde_json::to_string(&self).unwrap();
+        let json = serde_json::to_string(&sensor).unwrap();
         // sensor.as_object_mut().unwrap().insert("device".to_string(), json!({}));
         Bytes::from(json)
     }
