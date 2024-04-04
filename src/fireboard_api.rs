@@ -146,7 +146,7 @@ pub struct FireboardApiClient {
 
 impl FireboardApiClient {
     pub async fn new(user_email: String, user_password: String) -> Result<FireboardApiClient> {
-        let api_base = Url::parse(format!("https://fireboard.io/api/").as_str())?;
+        let api_base = Url::parse("https://fireboard.io/api/")?;
 
         let credentials = FireboardCloudApiAuthRequest {
             username: user_email.to_string(),
@@ -186,11 +186,11 @@ impl FireboardApiClient {
                     .build()?,
             );
 
-            return Ok(FireboardApiClient { api_base, client });
+            Ok(FireboardApiClient { api_base, client })
         } else {
-            return Err(anyhow::anyhow!(
+            Err(anyhow::anyhow!(
                 "Error authenticating with Fireboard API! Check your username and password. {:?}", auth_result.unwrap_err()
-            ));
+            ))
         }
     }
 
@@ -225,10 +225,10 @@ impl<'c> DevicesEndpoint<'c> {
             let status = response.status().to_string();
             error!("Error getting devices: {}", status);
             error!("{}", response.text().await?);
-            return Err(anyhow::anyhow!(
+            Err(anyhow::anyhow!(
                 "Error getting devices: {}",
                 status
-            ));
+            ))
         } else {
             let response_text = response.text().await?;
             // let v: Value = serde_json::from_str(response_text.as_str())?;
@@ -239,7 +239,7 @@ impl<'c> DevicesEndpoint<'c> {
                 error!("Error parsing devices: {} from response body: {}", e.to_string(), response_text);
                 return Err(e.into());
             }
-            return Ok(devices.unwrap());
+            Ok(devices.unwrap())
         }
     }
 
@@ -250,7 +250,7 @@ impl<'c> DevicesEndpoint<'c> {
         let base_endpoint = self.endpoint()?;
         let endpoint_str = format!(
             "{}/{}/drivelog.json",
-            base_endpoint.to_string(),
+            base_endpoint,
             device_uuid
         );
         let endpoint = Url::parse(&endpoint_str)?;
@@ -261,7 +261,7 @@ impl<'c> DevicesEndpoint<'c> {
 
         let v: Value = serde_json::from_str(response_text.as_str())?;
         if v == json!({}) {
-            return Ok(None);
+            Ok(None)
         } else {
             let json_output =
                 serde_json::from_str::<FireboardRealtimeDrivelog>(response_text.as_str())?;
