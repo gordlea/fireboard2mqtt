@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Local};
-use log::error;
+use log::{debug, error};
 use reqwest::{
     header::{HeaderMap, HeaderValue},
     Url,
@@ -231,6 +231,7 @@ impl<'c> DevicesEndpoint<'c> {
             ))
         } else {
             let response_text = response.text().await?;
+            debug!("Raw response body: {}", response_text);
             // let v: Value = serde_json::from_str(response_text.as_str())?;
             let devices 
                 = serde_json::from_str::<Vec<FireboardApiDevice>>(response_text.as_str());
