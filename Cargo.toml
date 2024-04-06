@@ -40,6 +40,6 @@ strip = false
 debug = 0
 strip = true
 lto = true
-opt-level = 3
+opt-level = "s"
 codegen-units = 1
 panic = "abort"
