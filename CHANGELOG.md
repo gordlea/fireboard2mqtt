@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.2](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.1...v3.1.2) (2024-04-06)
+
+
+### Bug Fixes
+
+* add extra debug logging to fireboard_api ([#47](https://github.com/gordlea/fireboard2mqtt/issues/47)) ([f9c1683](https://github.com/gordlea/fireboard2mqtt/commit/f9c1683b610d8ccdd16e773b36ad2b77adc911a2))
+
 ## [3.1.1](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.0...v3.1.1) (2024-04-04)
 
 
