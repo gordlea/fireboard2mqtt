@@ -28,6 +28,7 @@ chrono = { version = "0.4.31", default-features = false, features = [
     "clock"
 ]}
 twelf = { version = "0.15.0", default-features = false, features = ["env", "default_trait"]}
+strum = { version = "0.26.2", features = ["derive"] }
 
 [profile.dev]
 debug = true
