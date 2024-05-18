@@ -1,6 +1,5 @@
 {
     "recommendations": [
-        "mkhl.direnv",
         "editorconfig.editorconfig",
         "serayuzgur.crates",
         "vadimcn.vscode-lldb",

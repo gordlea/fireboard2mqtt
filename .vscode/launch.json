@@ -19,6 +19,7 @@
                     "kind": "bin"
                 }
             },
+            "envFile": "${workspaceFolder}/.env",
             "args": [],
             "cwd": "${workspaceFolder}"
         },

@@ -3,7 +3,7 @@ use crate::{
 };
 use env_logger::{Builder, Env};
 use human_bytes::human_bytes;
-use log::{debug, error, info, trace};
+use log::{debug, error, info, trace, warn};
 use memory_stats::memory_stats;
 use rumqttc::v5::{AsyncClient, MqttOptions};
 use std::process;
@@ -64,6 +64,8 @@ async fn main() {
 
     tokio::spawn(async move {
         while let Some(action) = rx_mqtt.recv().await {
+            // eprintln!("mqtt action: {:?}", action);
+
             match action {
                 MQTTAction::Publish {
                     topic,
@@ -72,6 +74,10 @@ async fn main() {
                     payload,
                     props,
                 } => {
+                    trace!("publishing to mqtt: topic={:?}, qos={:?}, retain={:?}, payload={:?}, props={:?}", topic, qos, retain, payload, props);
+                    if payload.is_empty() {
+                        warn!("publishing empty payload to topic: {}", topic)
+                    }
                     if let Some(properties) = props {
                         mqtt_client
                             .publish_with_properties(topic, qos, retain, payload, properties)
