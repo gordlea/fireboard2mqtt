@@ -307,7 +307,8 @@ impl FireboardWatcher {
                 state_topic: format!("{}/state", channel_topic),
                 unit_of_measurement: Some(device.degreetype.to_string()),
                 device: parent_device.clone(),
-                // expires_after: Some(60),
+                // TODO make this configurable?
+                expires_after: Some(600),
                 ..MQTTDiscoverySensor::default()
             };
             self.tx
@@ -341,7 +342,8 @@ impl FireboardWatcher {
             device_class: None,
             qos: 0,
             icon: Some("mdi:fan".to_string()),
-            // icon: None,
+            // TODO make this configurable?
+            expires_after: Some(600),
             state_topic: self.get_topic_device_drive_state(&hardware_id),
             unit_of_measurement: Some("%".to_string()),
             device: parent_device.clone(),
@@ -477,6 +479,7 @@ impl FireboardWatcher {
         let drive_enabled = self.cfg.fireboard_enable_drive;
         let result = self.fb_client.devices().list().await;
         if let Ok(returned_devices) = result {
+            info!("{} devices fetched successfully", returned_devices.len());
             #[cfg(feature = "pretty_print_json_logs")]
             trace!(
                 "devices fetched successfully: {}",
@@ -578,16 +581,16 @@ impl FireboardWatcher {
                                 .unwrap();
                         } else {
                             // channel is offline
-                            self.tx
-                                .send(MQTTAction::Publish {
-                                    topic: format!("{}/state", channel_topic),
-                                    qos: QoS::AtMostOnce,
-                                    retain: false,
-                                    payload: "".into(),
-                                    props: None,
-                                })
-                                .await
-                                .unwrap();
+                            // self.tx
+                            //     .send(MQTTAction::Publish {
+                            //         topic: format!("{}/state", channel_topic),
+                            //         qos: QoS::AtMostOnce,
+                            //         retain: false,
+                            //         payload: "".into(),
+                            //         props: None,
+                            //     })
+                            //     .await
+                            //     .unwrap();
                         }
                     }
                 }
@@ -743,27 +746,27 @@ impl FireboardWatcher {
                                 .await
                                 .unwrap();
 
-                            self.tx
-                                .send(MQTTAction::Publish {
-                                    topic: self.get_topic_device_drive_state(&hardware_id),
-                                    qos: QoS::AtMostOnce,
-                                    retain: false,
-                                    payload: "".into(),
-                                    props: None,
-                                })
-                                .await
-                                .unwrap();
+                            // self.tx
+                            //     .send(MQTTAction::Publish {
+                            //         topic: self.get_topic_device_drive_state(&hardware_id),
+                            //         qos: QoS::AtMostOnce,
+                            //         retain: false,
+                            //         payload: "".into(),
+                            //         props: None,
+                            //     })
+                            //     .await
+                            //     .unwrap();
 
-                            self.tx
-                                .send(MQTTAction::Publish {
-                                    topic: self.get_topic_device_drive_attributes(&hardware_id),
-                                    qos: QoS::AtMostOnce,
-                                    retain: false,
-                                    payload: "".into(),
-                                    props: None,
-                                })
-                                .await
-                                .unwrap();
+                            // self.tx
+                            //     .send(MQTTAction::Publish {
+                            //         topic: self.get_topic_device_drive_attributes(&hardware_id),
+                            //         qos: QoS::AtMostOnce,
+                            //         retain: false,
+                            //         payload: "".into(),
+                            //         props: None,
+                            //     })
+                            //     .await
+                            //     .unwrap();
                         }
                     } else if let Err(err) = rt_drivelog_request {
                         error!("Error fetching realtime drivelog: {:?}", err);
