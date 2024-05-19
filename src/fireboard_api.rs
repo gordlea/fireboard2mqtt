@@ -7,6 +7,7 @@ use reqwest::{
 };
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
+use strum::Display;
 use std::sync::Arc;
 extern crate serde_json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -84,27 +85,23 @@ where
 }
 
 
-#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone)]
+#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone, Display)]
 #[repr(u8)]
 pub enum DegreeType {
+    #[strum(to_string = "°C")]
     Celcius = 1,
+    #[strum(to_string = "°F")]
     Fahrenheit = 2,
 }
 
-impl ToString for DegreeType {
-    fn to_string(&self) -> String {
-        match self {
-            DegreeType::Celcius => "°C".to_string(),
-            DegreeType::Fahrenheit => "°F".to_string(),
-        }
-    }
-}
-
-#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone)]
+#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone, Display)]
 #[repr(u8)]
 pub enum DriveModeType {
+    #[strum(to_string = "off")]
     Off = 0,
+    #[strum(to_string = "manual")]
     Manual = 1,
+    #[strum(to_string = "auto")]
     Auto = 2,
 }
 
@@ -115,16 +112,6 @@ impl From<String> for DriveModeType {
             "manual" => DriveModeType::Manual,
             "auto" => DriveModeType::Auto,
             _ => panic!("Invalid DriveModeType: {}", s),
-        }
-    }
-}
-
-impl ToString for DriveModeType {
-    fn to_string(&self) -> String {
-        match self {
-            DriveModeType::Off => "off".to_string(),
-            DriveModeType::Manual => "manual".to_string(),
-            DriveModeType::Auto => "auto".to_string(),
         }
     }
 }
