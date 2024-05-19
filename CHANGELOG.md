@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.3](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.2...v3.1.3) (2024-05-19)
+
+
+### Bug Fixes
+
+* fixes erroneous json errors in home assistant core log ([#52](https://github.com/gordlea/fireboard2mqtt/issues/52)) ([7bd9735](https://github.com/gordlea/fireboard2mqtt/commit/7bd9735d3635016ea80960f5433e061ecf01fd27))
+
 ## [3.1.2](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.1...v3.1.2) (2024-04-06)
 
 
