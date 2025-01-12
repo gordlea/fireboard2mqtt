@@ -12,6 +12,8 @@ use std::sync::Arc;
 extern crate serde_json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+use crate::constants::USER_AGENT;
+
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct FireboardCloudApiAuthRequest {
     pub(crate) username: String,
@@ -144,6 +146,7 @@ impl FireboardApiClient {
         let auth_result = auth_client
             .post("https://fireboard.io/api/rest-auth/login/")
             .header("Content-Type", "application/json")
+            .header("User-Agent", USER_AGENT)
             .json(&credentials)
             .send()
             .await;
@@ -161,6 +164,7 @@ impl FireboardApiClient {
 
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+            headers.insert("User-Agent", HeaderValue::from_static(USER_AGENT));
             headers.insert(
                 "Authorization",
                 HeaderValue::from_str(format!("Token {}", auth.key).as_str())?,
