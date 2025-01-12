@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.4](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.3...v3.1.4) (2025-01-12)
+
+
+### Bug Fixes
+
+* header User-Agent now required by fireboard api ([#56](https://github.com/gordlea/fireboard2mqtt/issues/56)) ([7fd8705](https://github.com/gordlea/fireboard2mqtt/commit/7fd87055a843bb20db7ec5f5ca70e80c973e5d9a))
+
 ## [3.1.3](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.2...v3.1.3) (2024-05-19)
 
 
