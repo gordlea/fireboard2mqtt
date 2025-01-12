@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use compact_str::CompactString;
 use rumqttc::v5::mqttbytes::{
     v5::{PublishProperties, SubscribeProperties, UnsubscribeProperties},
     QoS,

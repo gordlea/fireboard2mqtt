@@ -1,4 +1,5 @@
 use std::process;
+use compact_str::CompactString;
 use serde::Serialize;
 use twelf::{config, Layer};
 use log::{debug, error, info};
@@ -79,23 +80,23 @@ pub struct FireboardConfigEnv { // vis modifiers work too
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MqttCredentials {
-    pub username: String,
+    pub username: CompactString,
     #[serde(skip_serializing)]
-    pub password: String,
+    pub password: CompactString,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Fb2MqttConfig {
-    pub fireboardaccount_email: String,
+    pub fireboardaccount_email: CompactString,
     #[serde(skip_serializing)]
-    pub fireboardaccount_password: String,
+    pub fireboardaccount_password: CompactString,
     pub fireboard_enable_drive: bool,
-    pub mqtt_host: String,
+    pub mqtt_host: CompactString,
     pub mqtt_port: u16,
-    pub mqtt_discovery_topic: String,
-    pub mqtt_base_topic: String,
+    pub mqtt_discovery_topic: CompactString,
+    pub mqtt_base_topic: CompactString,
     pub mqtt_credentials: Option<MqttCredentials>,
-    pub mqtt_clientid: String,
+    pub mqtt_clientid: CompactString,
 }
 
 pub fn load_cfg_from_env() -> Fb2MqttConfig {
@@ -133,22 +134,22 @@ pub fn load_cfg_from_env() -> Fb2MqttConfig {
     let mqtt_url = parsed_url.unwrap();
 
     Fb2MqttConfig {
-        fireboardaccount_email: cfg.fireboardaccount_email.unwrap().to_string(),
-        fireboardaccount_password: cfg.fireboardaccount_password.unwrap().to_string(),
+        fireboardaccount_email: cfg.fireboardaccount_email.unwrap().into(),
+        fireboardaccount_password: cfg.fireboardaccount_password.unwrap().into(),
         fireboard_enable_drive: cfg
             .fireboard_enable_drive,
-        mqtt_host: mqtt_url.host_str().unwrap().to_string(),
+        mqtt_host: mqtt_url.host_str().unwrap().into(),
         mqtt_port: mqtt_url.port().unwrap_or(1883),
-        mqtt_base_topic: cfg.mqtt_base_topic.to_string(),
-        mqtt_discovery_topic: cfg.mqtt_discovery_topic.to_string(),
+        mqtt_base_topic: cfg.mqtt_base_topic.into(),
+        mqtt_discovery_topic: cfg.mqtt_discovery_topic.into(),
         mqtt_credentials: if cfg.mqtt_username.is_none() {
             None
         } else {
             Some(MqttCredentials {
-                username: cfg.mqtt_username.unwrap().to_string(),
-                password: cfg.mqtt_password.unwrap().to_string(),
+                username: cfg.mqtt_username.unwrap().into(),
+                password: cfg.mqtt_password.unwrap().into(),
             })
         },
-        mqtt_clientid: cfg.mqtt_clientid.to_string(),
+        mqtt_clientid: cfg.mqtt_clientid.into(),
     }
 }

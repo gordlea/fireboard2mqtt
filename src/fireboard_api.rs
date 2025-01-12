@@ -1,5 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Local};
+use compact_str::CompactString;
 use log::{debug, error};
 use reqwest::{
     header::{HeaderMap, HeaderValue},
@@ -14,12 +15,12 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct FireboardCloudApiAuthRequest {
-    pub(crate) username: String,
-    pub(crate) password: String,
+    pub(crate) username: CompactString,
+    pub(crate) password: CompactString,
 }
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct FireboardCloudApiAuthResponse {
-    pub(crate) key: String,
+    pub(crate) key: CompactString,
 }
 
 
@@ -31,13 +32,13 @@ pub struct FireboardDeviceList {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardApiDevice {
     pub id: usize,
-    pub uuid: String,
-    pub title: String,
-    pub hardware_id: String,
-    pub version: String,
+    pub uuid: CompactString,
+    pub title: CompactString,
+    pub hardware_id: CompactString,
+    pub version: CompactString,
     pub channel_count: usize,
     pub degreetype: DegreeType,
-    pub model: String,
+    pub model: CompactString,
     pub channels: Vec<FireboardDeviceChannel>,
     pub latest_temps: Vec<FireboardTemps>,
     pub device_log: FireboardDeviceLog,
@@ -47,7 +48,7 @@ pub struct FireboardApiDevice {
 pub struct FireboardDeviceLog {
     pub date: DateTime<Local>,
     #[serde(alias = "macNIC")]
-    pub mac_nic: String,
+    pub mac_nic: CompactString,
     #[serde(alias = "onboardTemp")]
     pub onboard_temp: f32,
     #[serde(alias = "vBattPer")]
@@ -57,7 +58,7 @@ pub struct FireboardDeviceLog {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardDeviceChannel {
     pub channel: usize,
-    pub channel_label: String,
+    pub channel_label: CompactString,
     pub last_templog: Option<FireboardTemps>,
 }
 
@@ -80,7 +81,7 @@ fn drivemode_from_string<'de, D>(deserializer: D) -> Result<DriveModeType, D::Er
 where
     D: Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
+    let s = CompactString::deserialize(deserializer)?;
     Ok(DriveModeType::from(s))
 }
 
@@ -94,6 +95,25 @@ pub enum DegreeType {
     Fahrenheit = 2,
 }
 
+impl Into<CompactString> for DegreeType {
+    fn into(self) -> CompactString {
+        match self {
+            DegreeType::Celcius => CompactString::from("°C"),
+            DegreeType::Fahrenheit => CompactString::from("°F"),
+        }
+    }
+}
+
+impl From<CompactString> for DegreeType {
+    fn from(s: CompactString) -> Self {
+        match s.to_lowercase().as_str() {
+            "°c" => DegreeType::Celcius,
+            "°f" => DegreeType::Fahrenheit,
+            _ => panic!("Invalid DegreeType: {}", s),
+        }
+    }
+}
+
 #[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone, Display)]
 #[repr(u8)]
 pub enum DriveModeType {
@@ -105,8 +125,8 @@ pub enum DriveModeType {
     Auto = 2,
 }
 
-impl From<String> for DriveModeType {
-    fn from(s: String) -> Self {
+impl From<CompactString> for DriveModeType {
+    fn from(s: CompactString) -> Self {
         match s.to_lowercase().as_str() {
             "off" => DriveModeType::Off,
             "manual" => DriveModeType::Manual,
@@ -132,12 +152,12 @@ pub struct FireboardApiClient {
 }
 
 impl FireboardApiClient {
-    pub async fn new(user_email: String, user_password: String) -> Result<FireboardApiClient> {
+    pub async fn new(user_email: CompactString, user_password: CompactString) -> Result<FireboardApiClient> {
         let api_base = Url::parse("https://fireboard.io/api/")?;
 
         let credentials = FireboardCloudApiAuthRequest {
-            username: user_email.to_string(),
-            password: user_password.to_string(),
+            username: user_email,
+            password: user_password,
         };
 
         let auth_client = reqwest::Client::new();
@@ -233,7 +253,7 @@ impl<'c> DevicesEndpoint<'c> {
 
     pub async fn get_realtime_drivelog(
         &self,
-        device_uuid: String,
+        device_uuid: CompactString,
     ) -> Result<Option<FireboardRealtimeDrivelog>> {
         let base_endpoint = self.endpoint()?;
         let endpoint_str = format!(

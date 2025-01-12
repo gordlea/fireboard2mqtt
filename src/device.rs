@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
 use crate::{fireboard_api::DegreeType, constants::{OFFLINE, ONLINE}};
@@ -22,38 +23,38 @@ impl From<DegreeType> for UnitOfTemperatureMeasurement {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FireboardMqttChannel {
-    pub availability: String,
+    pub availability: CompactString,
     pub state: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MQTTDiscoverySensor {
-    pub unique_id: String,
-    pub object_id: String,
+    pub unique_id: CompactString,
+    pub object_id: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub name: Option<CompactString>,
     pub availability: Vec<MQTTDiscoveryAvailabilityEntry>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub device_class: Option<String>,
+    pub device_class: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub options: Option<Vec<String>>,
+    pub options: Option<Vec<CompactString>>,
     pub enabled_by_default: bool,
-    pub encoding: String,
+    pub encoding: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub suggested_display_precision: Option<u16>,
     pub qos: u8,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub state_class: Option<String>,
+    pub state_class: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub json_attributes_topic: Option<String>,
+    pub json_attributes_topic: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub icon: Option<String>,
+    pub icon: Option<CompactString>,
     /// see https://www.home-assistant.io/integrations/sensor.mqtt/#state_topic
-    pub state_topic: String,
+    pub state_topic: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub unit_of_measurement: Option<String>,
+    pub unit_of_measurement: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub suggested_unit_of_measurement: Option<String>,
+    pub suggested_unit_of_measurement: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<MQTTDiscoveryDevice>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -70,20 +71,20 @@ impl From<MQTTDiscoverySensor> for Bytes {
 impl Default for MQTTDiscoverySensor {
     fn default() -> Self {
         MQTTDiscoverySensor {
-            unique_id: "".to_string(),
-            object_id: "".to_string(),
+            unique_id: "".into(),
+            object_id: "".into(),
             name: None,
             availability: vec![],
             device_class: None,
             enabled_by_default: true,
-            encoding: "utf-8".to_string(),
+            encoding: "utf-8".into(),
             suggested_display_precision: None,
             options: None,
             qos: 0,
-            state_class: Some("measurement".to_string()),
+            state_class: Some("measurement".into()),
             json_attributes_topic: None,
             icon: None,
-            state_topic: "".to_string(),
+            state_topic: "".into(),
             unit_of_measurement: None,
             suggested_unit_of_measurement: None,
             device: None,
@@ -94,28 +95,28 @@ impl Default for MQTTDiscoverySensor {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MQTTDiscoveryBinarySensor {
-    pub unique_id: String,
-    pub object_id: String,
+    pub unique_id: CompactString,
+    pub object_id: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub name: Option<CompactString>,
     pub availability: Vec<MQTTDiscoveryAvailabilityEntry>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub device_class: Option<String>,
+    pub device_class: Option<CompactString>,
     pub enabled_by_default: bool,
-    pub encoding: String,
+    pub encoding: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub suggested_display_precision: Option<u16>,
     pub qos: u8,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub json_attributes_topic: Option<String>,
+    pub json_attributes_topic: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub icon: Option<String>,
+    pub icon: Option<CompactString>,
     /// see https://www.home-assistant.io/integrations/sensor.mqtt/#state_topic
-    pub state_topic: String,
+    pub state_topic: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payload_on: Option<String>,
+    pub payload_on: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payload_off: Option<String>,
+    pub payload_off: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<MQTTDiscoveryDevice>,
 }
@@ -132,18 +133,18 @@ impl From<MQTTDiscoveryBinarySensor> for Bytes {
 impl Default for MQTTDiscoveryBinarySensor {
     fn default() -> Self {
         MQTTDiscoveryBinarySensor {
-            unique_id: "".to_string(),
-            object_id: "".to_string(),
+            unique_id: "".into(),
+            object_id: "".into(),
             name: None,
             availability: vec![],
             device_class: None,
             enabled_by_default: true,
-            encoding: "utf-8".to_string(),
+            encoding: "utf-8".into(),
             suggested_display_precision: None,
             qos: 0,
             json_attributes_topic: None,
             icon: None,
-            state_topic: "".to_string(),
+            state_topic: "".into(),
             payload_on: None,
             payload_off: None,
             device: None,
@@ -154,19 +155,31 @@ impl Default for MQTTDiscoveryBinarySensor {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MQTTDiscoveryAvailabilityEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payload_available: Option<String>,
+    pub payload_available: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payload_not_available: Option<String>,
-    pub topic: String,
+    pub payload_not_available: Option<CompactString>,
+    pub topic: CompactString,
     // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub value_template: Option<String>,
+    // pub value_template: Option<CompactString>,
 }
 
 impl From<String> for MQTTDiscoveryAvailabilityEntry {
     fn from(topic: String) -> Self {
         MQTTDiscoveryAvailabilityEntry {
-            payload_available: Some(ONLINE.to_string()),
-            payload_not_available: Some(OFFLINE.to_string()),
+            payload_available: Some(ONLINE.into()),
+            payload_not_available: Some(OFFLINE.into()),
+            topic: topic.into(),
+            // value_template: None,
+        }
+    }
+}
+
+
+impl From<CompactString> for MQTTDiscoveryAvailabilityEntry {
+    fn from(topic: CompactString) -> Self {
+        MQTTDiscoveryAvailabilityEntry {
+            payload_available: Some(ONLINE.into()),
+            payload_not_available: Some(OFFLINE.into()),
             topic,
             // value_template: None,
         }
@@ -176,27 +189,27 @@ impl From<String> for MQTTDiscoveryAvailabilityEntry {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct MQTTDiscoveryDevice {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub configuration_url: Option<String>,
+    pub configuration_url: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub connections: Option<Vec<[String; 2]>>,
+    pub connections: Option<Vec<[CompactString; 2]>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub hw_version: Option<String>,
+    pub hw_version: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub identifiers: Option<Vec<String>>,
+    pub identifiers: Option<Vec<CompactString>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub manufacturer: Option<String>,
+    pub manufacturer: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub model: Option<String>,
+    pub model: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub name: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub serial_number: Option<String>,
+    pub serial_number: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sw_version: Option<String>,
+    pub sw_version: Option<CompactString>,
 }
 
 // pub struct MQTTDiscoveryAvailability {
-//     pub topic: String,
-//     pub payload_available: Option<String>,
-//     pub payload_not_available: Option<String>,
+//     pub topic: CompactString,
+//     pub payload_available: Option<CompactString>,
+//     pub payload_not_available: Option<CompactString>,
 // }
