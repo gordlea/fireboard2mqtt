@@ -9,27 +9,27 @@ default = []
 pretty_print_json_logs = []
 
 [dependencies]
-anyhow = "1.0.95"
-tokio = { version = "1.43", features = ["full"] }
-log = "0.4.22"
-env_logger = "0.11.6"
+anyhow = "1.0.99"
+tokio = { version = "1.47.1", features = ["full"] }
+log = "0.4.27"
+env_logger = "0.11.8"
 url = "2.5.4"
-serde = { version = "1.0.217", features = ["derive"]}
-serde_json = { version = "1.0.135" }
+serde = { version = "1.0.219", features = ["derive"]}
+serde_json = { version = "1.0.142" }
 rumqttc = "0.24.0"
-bytes = "1.9"
+bytes = "1.10.1"
 memory-stats = "1.2.0"
 human_bytes = { version = "0.4", default-features = false }
-serde_repr = "0.1.19"
-reqwest = { version = "0.12.12", default-features = false, features = ["default-tls", "charset", "macos-system-configuration", "json"] }
-chrono = { version = "0.4.39", default-features = false, features = [
+serde_repr = "0.1.20"
+reqwest = { version = "0.12.23", default-features = false, features = ["default-tls", "charset", "macos-system-configuration", "json"] }
+chrono = { version = "0.4.41", default-features = false, features = [
     "std",
     "serde",
     "clock"
 ]}
 twelf = { version = "0.15.0", default-features = false, features = ["env", "default_trait"]}
-strum = { version = "0.26.3", features = ["derive"] }
-constcat = "0.5.1"
+strum = { version = "0.27.2", features = ["derive"] }
+constcat = "0.6.1"
 
 [profile.dev]
 debug = true
