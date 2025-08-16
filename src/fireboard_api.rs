@@ -12,7 +12,10 @@ use std::sync::Arc;
 extern crate serde_json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::constants::USER_AGENT;
+use crate::{
+    constants::USER_AGENT,
+    utils::deserialize_empty_object,
+};
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct FireboardCloudApiAuthRequest {
@@ -42,8 +45,10 @@ pub struct FireboardApiDevice {
     pub model: String,
     pub channels: Vec<FireboardDeviceChannel>,
     pub latest_temps: Vec<FireboardTemps>,
-    pub device_log: FireboardDeviceLog,
+    #[serde(default, deserialize_with = "deserialize_empty_object")]
+    pub device_log: Option<FireboardDeviceLog>,
 }
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardDeviceLog {
@@ -118,16 +123,6 @@ impl From<String> for DriveModeType {
     }
 }
 
-#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Copy, Clone)]
-#[repr(u8)]
-pub enum ProgramState {
-    NotRunning = 0,
-    Running = 1,
-    /// I haven't seen this state, i'm guessing paused?
-    Paused = 2,
-    Complete = 3,
-}
-
 pub struct FireboardApiClient {
     api_base: url::Url,
     client: Arc<reqwest::Client>,
@@ -150,14 +145,13 @@ impl FireboardApiClient {
             .json(&credentials)
             .send()
             .await;
-
-        if auth_result.is_ok() {
-            let auth_response = auth_result.unwrap();
+        if let Ok(auth_response) = auth_result {
+            // let auth_response = auth_result.unwrap();
 
             let auth = match auth_response.error_for_status() {
                 Ok(r) => r.json::<FireboardCloudApiAuthResponse>().await?,
                 Err(e) => {
-                    error!("Error authenticating with Fireboard API! Check your username and password: {}", e.to_string());
+                    error!("Error authenticating with Fireboard API! Check your username and password: {}", e);
                     return Err(e.into());
                 }
             };
@@ -185,7 +179,7 @@ impl FireboardApiClient {
         }
     }
 
-    pub fn devices(&self) -> DevicesEndpoint {
+    pub fn devices(&self) -> DevicesEndpoint<'_> {
         DevicesEndpoint(self)
     }
 }
@@ -204,7 +198,7 @@ impl<'c> DevicesEndpoint<'c> {
         let request_attempt = self.0.client.get(endpoint).send().await;
 
         if let Err(e) = request_attempt {
-            error!("Error getting devices: {}", e.to_string());
+            error!("Error getting devices: {}", e);
             return Err(e.into());
         }
 
@@ -228,7 +222,7 @@ impl<'c> DevicesEndpoint<'c> {
                 = serde_json::from_str::<Vec<FireboardApiDevice>>(response_text.as_str());
             // let devices = response.json::<Vec<FireboardApiDevice>>().await;
             if let Err(e) = devices {
-                error!("Error parsing devices: {} from response body: {}", e.to_string(), response_text);
+                error!("Error parsing devices: {} from response body: {}", e, response_text);
                 return Err(e.into());
             }
             Ok(devices.unwrap())

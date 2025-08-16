@@ -231,12 +231,16 @@ impl FireboardWatcher {
 
     async fn update_discovery(&mut self, device: &FireboardApiDevice) {
         let hardware_id = device.hardware_id.clone();
-
+        let connections = if let Some(device_log) = &device.device_log {
+            Some(vec![["mac".to_string(), device_log.mac_nic.clone()]])
+        } else {
+            None
+        };
         let parent_device = Some(MQTTDiscoveryDevice {
             configuration_url: Some(
                 format!("https://fireboard.io/devices/{}/edit/", device.id).to_string(),
             ),
-            connections: Some(vec![["mac".to_string(), device.device_log.mac_nic.clone()]]),
+            connections,
             identifiers: Some(vec![
                 device.id.to_string(),
                 device.hardware_id.clone(),
@@ -500,10 +504,12 @@ impl FireboardWatcher {
                     let has_latest_temps = !latest_temps.is_empty();
                     if has_latest_temps {
                         true
-                    } else {
+                    } else if let Some(device_log) = &device.device_log {
                         let now = Local::now();
-                        let diff = now - device.device_log.date;
+                        let diff = now - device_log.date;
                         diff.num_minutes() < FIREBOARD_DEVICELOG_UPDATE_INTERVAL_MINUTES
+                    } else {
+                        false
                     }
                 };
 
@@ -529,19 +535,21 @@ impl FireboardWatcher {
                 // set battery state
                 if device_online {
                     self.online_device_count += 1;
+                    if let Some(device_log) = &device.device_log {
+                        let batt_percentage = f32_to_u8_pct(device_log.v_batt_per);
+                        self.tx
+                            .send(MQTTAction::Publish {
+                                topic: self.get_topic_device_battery(&hardware_id),
+                                qos: QoS::AtMostOnce,
+                                retain: true,
+                                payload: format!("{batt_percentage}").into(),
+                                props: None,
+                            })
+                            .await
+                            .unwrap();                        
+                    }
 
-                    let batt_percentage = f32_to_u8_pct(device.device_log.v_batt_per);
 
-                    self.tx
-                        .send(MQTTAction::Publish {
-                            topic: self.get_topic_device_battery(&hardware_id),
-                            qos: QoS::AtMostOnce,
-                            retain: true,
-                            payload: format!("{batt_percentage}").into(),
-                            props: None,
-                        })
-                        .await
-                        .unwrap();
                 }
 
                 if device_online {
