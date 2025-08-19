@@ -1,24 +1,7 @@
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-use crate::{fireboard_api::DegreeType, constants::{OFFLINE, ONLINE}};
-
-#[derive(PartialEq, Debug, Copy, Clone)]
-#[repr(u8)]
-pub enum UnitOfTemperatureMeasurement {
-    // Kelvin = 0,
-    Celcius = 1,
-    Fahrenheit = 2,
-}
-
-impl From<DegreeType> for UnitOfTemperatureMeasurement {
-    fn from(degreetype: DegreeType) -> Self {
-        match degreetype {
-            DegreeType::Celcius => UnitOfTemperatureMeasurement::Celcius,
-            DegreeType::Fahrenheit => UnitOfTemperatureMeasurement::Fahrenheit,
-        }
-    }
-}
+use crate::constants::{OFFLINE, ONLINE};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FireboardMqttChannel {
