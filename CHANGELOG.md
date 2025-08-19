@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.5](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.4...v3.1.5) (2025-08-19)
+
+
+### Bug Fixes
+
+* fix empty device_log error / missing date field ([#61](https://github.com/gordlea/fireboard2mqtt/issues/61)) ([55ff705](https://github.com/gordlea/fireboard2mqtt/commit/55ff7054f1528b90516926514d72c983af452def))
+
 ## [3.1.4](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.3...v3.1.4) (2025-01-12)
 
 
