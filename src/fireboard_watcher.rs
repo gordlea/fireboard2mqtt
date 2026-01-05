@@ -258,7 +258,7 @@ impl FireboardWatcher {
         let battery_id = format!("{}_battery", hardware_id);
         let battery_discovery = MQTTDiscoverySensor {
             unique_id: battery_id.clone(),
-            object_id: battery_id,
+            default_entity_id: format!("sensor.{}", battery_id),
             name: Some("Battery".to_string()),
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
@@ -293,7 +293,7 @@ impl FireboardWatcher {
 
             let channel_discovery = MQTTDiscoverySensor {
                 unique_id: channel_id.clone(),
-                object_id: channel_id,
+                default_entity_id: format!("sensor.{}", channel_id),
                 name: Some(channel.channel_label),
                 availability: vec![
                     MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
@@ -332,7 +332,7 @@ impl FireboardWatcher {
         let drive_id = format!("{}_drive", hardware_id);
         let drive_discovery = MQTTDiscoverySensor {
             unique_id: drive_id.clone(),
-            object_id: drive_id.clone(),
+            default_entity_id: format!("sensor.{}", drive_id),
             name: Some("Drive".to_string()),
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
@@ -369,7 +369,7 @@ impl FireboardWatcher {
         let drive_mode_id = format!("{}_mode", drive_id.clone());
         let drive_mode_discovery = MQTTDiscoverySensor {
             unique_id: drive_mode_id.clone(),
-            object_id: drive_mode_id.clone(),
+            default_entity_id: format!("sensor.{}", drive_mode_id),
             name: Some("Drive Mode".to_string()),
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
@@ -409,7 +409,7 @@ impl FireboardWatcher {
         let drive_setpoint_id = format!("{}_setpoint", drive_id.clone());
         let drive_setpoint_discovery = MQTTDiscoverySensor {
             unique_id: drive_setpoint_id.clone(),
-            object_id: drive_setpoint_id.clone(),
+            default_entity_id: format!("sensor.{}", drive_setpoint_id),
             name: Some("Drive Setpoint".to_string()),
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
@@ -446,7 +446,7 @@ impl FireboardWatcher {
         let drive_lidpaused_id = format!("{}_lidpaused", drive_id.clone());
         let drive_lidpaused_discovery = MQTTDiscoveryBinarySensor {
             unique_id: drive_lidpaused_id.clone(),
-            object_id: drive_lidpaused_id.clone(),
+            default_entity_id: format!("binary_sensor.{}", drive_lidpaused_id),
             name: Some("Drive Lid Paused".to_string()),
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),

@@ -6,7 +6,7 @@ use crate::constants::{OFFLINE, ONLINE};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MQTTDiscoverySensor {
     pub unique_id: String,
-    pub object_id: String,
+    pub default_entity_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     pub availability: Vec<MQTTDiscoveryAvailabilityEntry>,
@@ -48,7 +48,7 @@ impl Default for MQTTDiscoverySensor {
     fn default() -> Self {
         MQTTDiscoverySensor {
             unique_id: "".to_string(),
-            object_id: "".to_string(),
+            default_entity_id: "".to_string(),
             name: None,
             availability: vec![],
             device_class: None,
@@ -72,7 +72,7 @@ impl Default for MQTTDiscoverySensor {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MQTTDiscoveryBinarySensor {
     pub unique_id: String,
-    pub object_id: String,
+    pub default_entity_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     pub availability: Vec<MQTTDiscoveryAvailabilityEntry>,
@@ -110,7 +110,7 @@ impl Default for MQTTDiscoveryBinarySensor {
     fn default() -> Self {
         MQTTDiscoveryBinarySensor {
             unique_id: "".to_string(),
-            object_id: "".to_string(),
+            default_entity_id: "".to_string(),
             name: None,
             availability: vec![],
             device_class: None,
