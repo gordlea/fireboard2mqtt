@@ -446,7 +446,7 @@ impl FireboardWatcher {
         let drive_lidpaused_id = format!("{}_lidpaused", drive_id.clone());
         let drive_lidpaused_discovery = MQTTDiscoveryBinarySensor {
             unique_id: drive_lidpaused_id.clone(),
-            default_entity_id: format!("sensor.{}", drive_lidpaused_id),
+            default_entity_id: format!("binary_sensor.{}", drive_lidpaused_id),
             name: Some("Drive Lid Paused".to_string()),
             availability: vec![
                 MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
