@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.2.0](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.5...v3.2.0) (2026-01-05)
+
+
+### Features
+
+* add ability to configure fireboard api update interval ([#72](https://github.com/gordlea/fireboard2mqtt/issues/72)) ([a02e764](https://github.com/gordlea/fireboard2mqtt/commit/a02e7649f762ce4dc8f155a56f648751dc18bc55))
+
+
+### Bug Fixes
+
+* remove obsolete channel_count property from device ([#69](https://github.com/gordlea/fireboard2mqtt/issues/69)) ([8d8c9fd](https://github.com/gordlea/fireboard2mqtt/commit/8d8c9fdfcd8b7890b76cb4b79f02f55e8af50b7a))
+* update object_id references to default_entity_id ([#73](https://github.com/gordlea/fireboard2mqtt/issues/73)) ([381f45f](https://github.com/gordlea/fireboard2mqtt/commit/381f45f9f5066b11ac4eb9ae2f475b68708931c1))
+
 ## [3.1.5](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.4...v3.1.5) (2025-08-19)
 
 
