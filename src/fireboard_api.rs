@@ -27,12 +27,6 @@ pub struct FireboardCloudApiAuthResponse {
     pub(crate) key: String,
 }
 
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FireboardDeviceList {
-    pub devices: Vec<FireboardApiDevice>,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FireboardApiDevice {
     pub id: usize,

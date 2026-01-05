@@ -4,12 +4,6 @@ use serde::{Deserialize, Serialize};
 use crate::constants::{OFFLINE, ONLINE};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FireboardMqttChannel {
-    pub availability: String,
-    pub state: f32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct MQTTDiscoverySensor {
     pub unique_id: String,
     pub object_id: String,
