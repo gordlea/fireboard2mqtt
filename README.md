@@ -86,6 +86,15 @@ FB2MQTT_MQTT_BASE_TOPIC=fireboard2mqtt
 # (optional, default=fireboard2mqtt) the mqtt clientId to use when connecting to the
 # mqtt broker 
 FB2MQTT_MQTT_CLIENTID=fireboard2mqtt
+
+# (optional, default=30, min=20) how often to call the fireboard cloud api when a device is
+# found online
+FB2MQTT_FIREBOARD_API_UPDATE_INTERVAL_SECONDS=30
+
+# (optional, default=90, min=20) how often to call the fireboard cloud api when no
+# devices are found online
+FB2MQTT_FIREBOARD_API_UPDATE_INTERVAL_SECONDS_WHEN_OFFLINE=90
+
 ```
 
 Create an .env file configured using the above env vars and run `direnv allow` to enable them.
