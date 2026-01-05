@@ -64,8 +64,6 @@ async fn main() {
 
     tokio::spawn(async move {
         while let Some(action) = rx_mqtt.recv().await {
-            // eprintln!("mqtt action: {:?}", action);
-
             match action {
                 MQTTAction::Publish {
                     topic,
@@ -113,7 +111,6 @@ async fn main() {
             }
         }
     });
-    // watcher.init().await;
 
     tokio::spawn(async move {
         loop {
@@ -123,28 +120,13 @@ async fn main() {
                     "Current physical memory usage: {}",
                     human_bytes(usage.physical_mem as u32)
                 );
-                // info!("Current virtual memory usage: {}", usage.virtual_mem);
             }
             debug!("there are {} devices online", watcher.online_device_count());
             let sleep_duration = if watcher.online_device_count() > 0 {
-                // the fireboard cloud api has a rate limit of 200 requests per hour
-                // which works out to 1 request every 18 seconds, or 1 every 20 secs to be safe,
-                // so we need to be careful about how often we poll for updates
-                let default_base_interval = 20;
-                if cfg.fireboard_enable_drive {
-                    debug!("drive support is enabled");
-                    // if drive is enabled, then for each online device we need to make
-                    // one extra call to the fireboard cloud api
-                    default_base_interval * 2
-                } else {
-                    debug!("drive support not enabled");
-                    // if drive is not enabled, then we only need to make one call total
-                    // when we call `update()` to get the temps for all devices
-                    default_base_interval
-                }
+                cfg.fireboard_api_device_online_update_interval_seconds
             } else {
                 // we default to polling once a minute when no devices are online
-                60
+                cfg.fireboard_api_device_offline_update_interval_seconds
             };
             debug!(
                 "updating from fireboard cloud api in {} seconds",

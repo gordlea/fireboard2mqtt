@@ -1,8 +1,10 @@
 use std::process;
 use serde::Serialize;
 use twelf::{config, Layer};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use url::Url;
+
+use crate::constants::API_MIN_UPDATE_INTERVAL_SECONDS;
 
 struct ConfigDefaults {}
 impl ConfigDefaults {
@@ -24,6 +26,12 @@ impl ConfigDefaults {
     pub fn none_default() -> Option<String> {
         None
     }
+    pub fn device_online_update_interval_seconds_default() -> u64 {
+        30
+    }
+    pub fn device_online_update_interval_seconds_when_offline_default() -> u64 {
+        90
+    }
 }
 
 #[config]
@@ -37,6 +45,13 @@ pub struct FireboardConfigEnv { // vis modifiers work too
     /// Will use `FB2MQTT_FIREBOARD_ENABLE_DRIVE`
     #[serde(default = "ConfigDefaults::fireboard_enable_drive_default")]
     pub fireboard_enable_drive: bool,
+    /// Will use `FB2MQTT_FIREBOARD_API_UPDATE_INTERVAL_SECONDS`
+    #[serde(default = "ConfigDefaults::device_online_update_interval_seconds_default")]
+    pub fireboard_api_update_interval_seconds: u64,
+    /// Will use `FB2MQTT_FIREBOARD_API_UPDATE_INTERVAL_SECONDS_WHEN_OFFLINE`
+    #[serde(default = "ConfigDefaults::device_online_update_interval_seconds_when_offline_default")]
+    pub fireboard_api_update_interval_seconds_when_offline: u64,
+
     /// Will use `FB2MQTT_MQTT_URL`
     #[serde(default = "ConfigDefaults::mqtt_url_default")]
     pub mqtt_url: String,
@@ -58,24 +73,8 @@ pub struct FireboardConfigEnv { // vis modifiers work too
     /// Will use `FB2MQTT_MQTT_CLIENTID`
     #[serde(default = "ConfigDefaults::mqtt_clientid_default")]
     pub mqtt_clientid: String,
-}
 
-// impl Default for FireboardConfigEnv {
-//     fn default() -> Self {
-//         FireboardConfigEnv {
-//             fireboardaccount_email: None,
-//             fireboardaccount_password: None,
-//             fireboard_enable_drive: false,
-//             mqtt_url: "mqtt://localhost:1883".to_string(),
-//             mqtt_discovery_topic: "homeassistant".to_string(),
-//             mqtt_base_topic: "fireboard2mqtt".to_string(),
-//             mqtt_username: None,
-//             mqtt_password: None,
-//             mqtt_clientid: "fireboard2mqtt".to_string(),
-//         }
-//     }
-// 
-// }
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MqttCredentials {
@@ -90,6 +89,8 @@ pub struct Fb2MqttConfig {
     #[serde(skip_serializing)]
     pub fireboardaccount_password: String,
     pub fireboard_enable_drive: bool,
+    pub fireboard_api_device_online_update_interval_seconds: u64,
+    pub fireboard_api_device_offline_update_interval_seconds: u64,
     pub mqtt_host: String,
     pub mqtt_port: u16,
     pub mqtt_discovery_topic: String,
@@ -115,7 +116,6 @@ pub fn load_cfg_from_env() -> Fb2MqttConfig {
     }
 
     if cfg.mqtt_username.is_none() {
-        eprintln!("cfg.fb2mqtt_mqtt_username: {:?}", cfg.mqtt_username);
         info!("missing or empty env var FB2MQTT_MQTT_USERNAME, mqtt will operate in anonymous mode")
     }
 
@@ -130,6 +130,30 @@ pub fn load_cfg_from_env() -> Fb2MqttConfig {
         process::exit(1);
     }
 
+
+    // the fireboard cloud api has a rate limit of 200 requests per hour
+    // which works out to 1 request every 18 seconds, or 1 every 20 secs to be safe,
+    // so we need to be careful about how often we poll for updates
+    let online_update_interval = if cfg.fireboard_enable_drive && cfg.fireboard_api_update_interval_seconds < API_MIN_UPDATE_INTERVAL_SECONDS * 2 {
+        warn!("fireboard drive control is enabled, setting update interval to minimum of {} seconds to avoid api throttling.", API_MIN_UPDATE_INTERVAL_SECONDS * 2);
+        API_MIN_UPDATE_INTERVAL_SECONDS * 2
+    } else if cfg.fireboard_api_update_interval_seconds < API_MIN_UPDATE_INTERVAL_SECONDS {
+        API_MIN_UPDATE_INTERVAL_SECONDS
+    } else {
+        cfg.fireboard_api_update_interval_seconds
+    };
+    info!("When devices are online, we will check the fireboard api every {} seconds.", online_update_interval);
+
+    let offline_update_interval = if cfg.fireboard_enable_drive && cfg.fireboard_api_update_interval_seconds_when_offline < API_MIN_UPDATE_INTERVAL_SECONDS * 2 {
+        info!("fireboard drive control is enabled, setting update interval to minimum of {} seconds to avoid api throttling.", API_MIN_UPDATE_INTERVAL_SECONDS * 2);
+        API_MIN_UPDATE_INTERVAL_SECONDS * 2
+    } else if cfg.fireboard_api_update_interval_seconds_when_offline < API_MIN_UPDATE_INTERVAL_SECONDS {
+        API_MIN_UPDATE_INTERVAL_SECONDS
+    } else {
+        cfg.fireboard_api_update_interval_seconds_when_offline
+    };
+    info!("When no devices are online, we will check the fireboard api every {} seconds.", offline_update_interval);
+
     let mqtt_url = parsed_url.unwrap();
 
     Fb2MqttConfig {
@@ -137,6 +161,8 @@ pub fn load_cfg_from_env() -> Fb2MqttConfig {
         fireboardaccount_password: cfg.fireboardaccount_password.unwrap().to_string(),
         fireboard_enable_drive: cfg
             .fireboard_enable_drive,
+        fireboard_api_device_online_update_interval_seconds: online_update_interval,
+        fireboard_api_device_offline_update_interval_seconds: offline_update_interval,
         mqtt_host: mqtt_url.host_str().unwrap().to_string(),
         mqtt_port: mqtt_url.port().unwrap_or(1883),
         mqtt_base_topic: cfg.mqtt_base_topic.to_string(),
