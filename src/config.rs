@@ -93,6 +93,7 @@ pub struct Fb2MqttConfig {
     pub fireboard_api_device_offline_update_interval_seconds: u64,
     pub mqtt_host: String,
     pub mqtt_port: u16,
+    pub mqtt_use_tls: bool,
     pub mqtt_discovery_topic: String,
     pub mqtt_base_topic: String,
     pub mqtt_credentials: Option<MqttCredentials>,
@@ -159,6 +160,20 @@ pub fn load_cfg_from_env() -> Fb2MqttConfig {
 
     let mqtt_url = parsed_url.unwrap();
 
+    let mqtt_use_tls = match mqtt_url.scheme() {
+        "mqtts" | "ssl" | "tls" => true,
+        "mqtt" | "tcp" => false,
+        other => {
+            warn!(
+                "Unrecognized mqtt url scheme '{}', assuming plaintext (no TLS). Use 'mqtt://' or 'mqtts://'.",
+                other
+            );
+            false
+        }
+    };
+
+    let mqtt_port_default = if mqtt_use_tls { 8883 } else { 1883 };
+
     Fb2MqttConfig {
         fireboardaccount_email: cfg.fireboardaccount_email.unwrap().to_string(),
         fireboardaccount_password: cfg.fireboardaccount_password.unwrap().to_string(),
@@ -167,7 +182,8 @@ pub fn load_cfg_from_env() -> Fb2MqttConfig {
         fireboard_api_device_online_update_interval_seconds: online_update_interval,
         fireboard_api_device_offline_update_interval_seconds: offline_update_interval,
         mqtt_host: mqtt_url.host_str().unwrap().to_string(),
-        mqtt_port: mqtt_url.port().unwrap_or(1883),
+        mqtt_port: mqtt_url.port().unwrap_or(mqtt_port_default),
+        mqtt_use_tls,
         mqtt_base_topic: cfg.mqtt_base_topic.to_string(),
         mqtt_discovery_topic: cfg.mqtt_discovery_topic.to_string(),
         mqtt_credentials: if cfg.mqtt_username.is_none() {
