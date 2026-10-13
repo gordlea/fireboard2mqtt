@@ -11,6 +11,9 @@ on:
     types: [published]
   workflow_dispatch:
 
+# No default token scopes; each job below declares exactly what it needs.
+permissions: {}
+
 env:
   STANDALONE_IMAGE: ghcr.io/gordlea/fireboard2mqtt
   ADDON_IMAGE_PREFIX: ghcr.io/gordlea/fireboard2mqtt-addon
