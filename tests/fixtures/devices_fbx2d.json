@@ -1,0 +1,26 @@
+[
+  {
+    "id": 119039,
+    "uuid": "00000000-0000-4000-8000-000000119039",
+    "title": "Fireboard 2",
+    "hardware_id": "GHK4F6CD2",
+    "version": "3.2.13",
+    "latest_temps": [],
+    "model": "FBX2D",
+    "degreetype": 2,
+    "channels": [
+      {"id": 18044149, "channel": 0, "color_id": 8, "channel_label": "Channel (null)", "color_hex": "FFC800", "state": null, "enabled": true, "sessionid": 3321800, "created": "2022-01-16T03:19:22Z", "alerts": []},
+      {"id": 57275789, "channel": 1, "color_id": 9, "channel_label": "Ambient", "color_hex": "E8A00C", "state": true, "enabled": true, "sessionid": 12007425, "created": "2026-10-11T20:29:56Z", "alerts": []},
+      {"id": 57275790, "channel": 2, "color_id": 10, "channel_label": "Breast", "color_hex": "FF8D00", "state": true, "enabled": true, "sessionid": 12007425, "created": "2026-10-11T20:29:57Z", "alerts": [{"channel": 2, "notify_sms": false, "temp_min": null, "device_id": 119039, "minutes_repeat": 30, "notify_email": false, "enabled": true, "notify_app": true, "temp_max": 165.0, "id": 11691529, "time_stop": null, "created": "2026-10-11T20:41:32.836Z", "session_id": 12007425, "time_start": null, "minutes_buffer": 0}]},
+      {"id": 57275791, "channel": 3, "color_id": 11, "channel_label": "Thigh", "color_hex": "E8620C", "state": true, "enabled": true, "sessionid": 12007425, "created": "2026-10-11T20:29:57Z", "alerts": []},
+      {"id": 57275792, "channel": 4, "color_id": 12, "channel_label": "Channel4", "color_hex": "FF450D", "state": true, "enabled": true, "sessionid": 12007425, "created": "2026-10-11T20:29:57Z", "alerts": []},
+      {"id": 57275793, "channel": 5, "color_id": 13, "channel_label": "Channel5", "color_hex": "98DF8A", "state": true, "enabled": true, "sessionid": 12007425, "created": "2026-10-11T20:29:57Z", "alerts": []},
+      {"id": 57275794, "channel": 6, "color_id": 14, "channel_label": "Ambient", "color_hex": "D62728", "state": true, "enabled": true, "sessionid": 12007425, "created": "2026-10-11T20:29:57Z", "alerts": []},
+      {"id": 18044150, "channel": 7, "color_id": 15, "channel_label": "Channel 7", "color_hex": "FF9896", "state": null, "enabled": true, "sessionid": 3321800, "created": "2022-01-16T03:19:22Z", "alerts": []},
+      {"id": 18044151, "channel": 8, "color_id": 16, "channel_label": "Channel 8", "color_hex": "9467BD", "state": null, "enabled": true, "sessionid": 3321800, "created": "2022-01-16T03:19:34Z", "alerts": []},
+      {"id": 18044152, "channel": 9, "color_id": 17, "channel_label": "Channel 9", "color_hex": "C5B0D5", "state": null, "enabled": true, "sessionid": 3321800, "created": "2022-01-16T03:19:34Z", "alerts": []},
+      {"id": 18044153, "channel": 10, "color_id": 18, "channel_label": "Channel 10", "color_hex": "8C564B", "state": null, "enabled": true, "sessionid": 3321800, "created": "2022-01-16T03:19:54Z", "alerts": []},
+      {"id": 18044700, "channel": 164, "color_id": 44, "channel_label": "Channel 164", "color_hex": "4477AA", "state": null, "enabled": true, "sessionid": 3321800, "created": "2022-01-16T04:10:14Z", "alerts": []}
+    ]
+  }
+]

@@ -41,7 +41,10 @@ If you are running Home Assistant core only (without addon support), you can run
 
 To do so, create an .env file with the config from below in it, and run the following command:
 
-`docker run --env-file=.env -t gordlea/fireboard2mqtt`
+`docker run --env-file=.env ghcr.io/gordlea/fireboard2mqtt:3`
+
+Images are published to the GitHub Container Registry for `linux/amd64` and `linux/arm64`. Every release is tagged
+`X.Y.Z`, `X.Y` and `X`, plus `latest`; pin to the major (`:3`) to get fixes without breaking changes.
 
 ### Bare Metal Standalone or Development
 
@@ -77,8 +80,9 @@ FB2MQTT_MQTT_USERNAME=<username>
 # assistant addon, use your home assistant password
 FB2MQTT_MQTT_PASSWORD=<password>
 
-# (optional, default=homeassistant) this probably shouldn't be changed
-FB2MQTT_DISCOVERY_PREFIX=homeassistant
+# (optional, default=homeassistant) the home assistant mqtt discovery prefix, this probably
+# shouldn't be changed
+FB2MQTT_MQTT_DISCOVERY_TOPIC=homeassistant
 
 # (optional, default=fireboard2mqtt) this probably shouldn't be changed
 FB2MQTT_MQTT_BASE_TOPIC=fireboard2mqtt
@@ -99,3 +103,24 @@ FB2MQTT_FIREBOARD_API_UPDATE_INTERVAL_SECONDS_WHEN_OFFLINE=90
 
 Create an .env file configured using the above env vars and run `direnv allow` to enable them.
 
+## Releasing
+
+Everything is driven from this repository; [home-assistant-addons](https://github.com/gordlea/home-assistant-addons)
+is only a distribution repository that CI writes to.
+
+1. Merge pull requests into `main` using [conventional commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, ...).
+2. [release-please](https://github.com/googleapis/release-please) keeps a release pull request open. Merging it bumps
+   `Cargo.toml`, `CHANGELOG.md` and `addon/config.yaml`, tags `vX.Y.Z` and publishes a GitHub release.
+3. The release triggers `.github/workflows/release.yml`, which builds natively on amd64 and arm64 runners and pushes:
+   * `ghcr.io/gordlea/fireboard2mqtt` (standalone, multi-arch) tagged `X.Y.Z`, `X.Y`, `X`, `latest`
+   * `ghcr.io/gordlea/fireboard2mqtt-addon-amd64` and `-aarch64` tagged `X.Y.Z`, `latest`
+
+   then copies `addon/` and `CHANGELOG.md` into `home-assistant-addons/fireboard2mqtt` and pushes that commit, which is
+   what makes the new version show up in the Home Assistant add-on store.
+
+`.github/workflows/ci.yml` runs the tests, clippy and a no-push build of both image targets on every pull request.
+To exercise the release workflow without releasing, run it manually from the Actions tab: it pushes `edge` tags and
+skips the add-on repository.
+
+The add-on definition (`addon/config.yaml`, `addon/run.sh`, the add-on README and icons) lives here; edit it here,
+never in the add-on repository.
