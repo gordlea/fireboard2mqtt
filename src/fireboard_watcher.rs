@@ -229,14 +229,42 @@ impl FireboardWatcher {
             .unwrap();
     }
 
+    /// Publish discovery configs for anything new or changed on this device. Nothing is
+    /// re-sent on an ordinary poll.
     async fn update_discovery(&mut self, device: &FireboardApiDevice) {
         let hardware_id = device.hardware_id.clone();
-        let connections = if let Some(device_log) = &device.device_log {
-            Some(vec![["mac".to_string(), device_log.mac_nic.clone()]])
-        } else {
-            None
-        };
-        let parent_device = Some(MQTTDiscoveryDevice {
+        let parent_device = Self::build_parent_device(device);
+
+        let state = self.discovery.entry(hardware_id.clone()).or_default();
+        let publish_device_level = !state.device_level_published;
+        let channels_to_publish: Vec<FireboardDeviceChannel> = state
+            .channels_to_publish(device)
+            .into_iter()
+            .cloned()
+            .collect();
+
+        if publish_device_level {
+            self.publish_device_level_discovery(device, &parent_device)
+                .await;
+        }
+        for channel in &channels_to_publish {
+            self.publish_channel_discovery(device, channel, &parent_device)
+                .await;
+        }
+
+        let state = self.discovery.entry(hardware_id).or_default();
+        state.device_level_published = true;
+        for channel in &channels_to_publish {
+            state.mark_channel_published(device, channel);
+        }
+    }
+
+    fn build_parent_device(device: &FireboardApiDevice) -> Option<MQTTDiscoveryDevice> {
+        let connections = device
+            .device_log
+            .as_ref()
+            .map(|device_log| vec![["mac".to_string(), device_log.mac_nic.clone()]]);
+        Some(MQTTDiscoveryDevice {
             configuration_url: Some(
                 format!("https://fireboard.io/devices/{}/edit/", device.id).to_string(),
             ),
@@ -252,7 +280,78 @@ impl FireboardWatcher {
             serial_number: Some(device.hardware_id.clone()),
             sw_version: Some(device.version.clone()),
             ..MQTTDiscoveryDevice::default()
-        });
+        })
+    }
+
+    /// The discovery config for one channel. Kept separate so tests can check its shape.
+    fn channel_discovery_sensor(
+        &self,
+        device: &FireboardApiDevice,
+        channel: &FireboardDeviceChannel,
+        parent_device: &Option<MQTTDiscoveryDevice>,
+    ) -> MQTTDiscoverySensor {
+        let hardware_id = &device.hardware_id;
+        let channel_id = format!("{}_channel_{}", hardware_id, channel.channel);
+        let channel_topic = self.get_topic_device_channel(hardware_id, &channel.channel);
+
+        MQTTDiscoverySensor {
+            unique_id: channel_id.clone(),
+            default_entity_id: format!("sensor.{}", channel_id),
+            name: Some(channel.channel_label.clone()),
+            availability: vec![
+                MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_availablility(hardware_id),
+                ),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_channel_availability(hardware_id, &channel.channel),
+                ),
+            ],
+            suggested_unit_of_measurement: Some("°F".to_string()),
+            device_class: Some("temperature".to_string()),
+            qos: 0,
+            icon: None,
+            state_topic: format!("{}/state", channel_topic),
+            unit_of_measurement: Some(device.degreetype.to_string()),
+            device: parent_device.clone(),
+            // TODO make this configurable?
+            expires_after: Some(600),
+            ..MQTTDiscoverySensor::default()
+        }
+    }
+
+    async fn publish_channel_discovery(
+        &self,
+        device: &FireboardApiDevice,
+        channel: &FireboardDeviceChannel,
+        parent_device: &Option<MQTTDiscoveryDevice>,
+    ) {
+        info!(
+            "publishing discovery for {} channel {} ({})",
+            device.hardware_id, channel.channel, channel.channel_label
+        );
+        let channel_discovery = self.channel_discovery_sensor(device, channel, parent_device);
+        self.tx
+            .send(MQTTAction::Publish {
+                topic: self
+                    .get_topic_device_channel_discovery(&device.hardware_id, &channel.channel),
+                qos: QoS::AtMostOnce,
+                retain: true,
+                payload: channel_discovery.into(),
+                props: None,
+            })
+            .await
+            .unwrap();
+    }
+
+    /// Battery and drive discovery configs. Published once per device per run.
+    async fn publish_device_level_discovery(
+        &self,
+        device: &FireboardApiDevice,
+        parent_device: &Option<MQTTDiscoveryDevice>,
+    ) {
+        let hardware_id = device.hardware_id.clone();
+        info!("publishing device discovery for {}", hardware_id);
 
         // set battery mqtt discovery
         let battery_id = format!("{}_battery", hardware_id);
@@ -284,48 +383,6 @@ impl FireboardWatcher {
             })
             .await
             .unwrap();
-
-        for channel in device.channels.clone() {
-            // set channel mqtt discovery
-            let channel_id = format!("{}_channel_{}", hardware_id, channel.channel);
-
-            let channel_topic = self.get_topic_device_channel(&hardware_id, &channel.channel);
-
-            let channel_discovery = MQTTDiscoverySensor {
-                unique_id: channel_id.clone(),
-                default_entity_id: format!("sensor.{}", channel_id),
-                name: Some(channel.channel_label),
-                availability: vec![
-                    MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
-                    MQTTDiscoveryAvailabilityEntry::from(
-                        self.get_topic_device_availablility(&hardware_id),
-                    ),
-                    MQTTDiscoveryAvailabilityEntry::from(
-                        self.get_topic_device_channel_availability(&hardware_id, &channel.channel),
-                    ),
-                ],
-                suggested_unit_of_measurement: Some("°F".to_string()),
-                device_class: Some("temperature".to_string()),
-                qos: 0,
-                icon: None,
-                state_topic: format!("{}/state", channel_topic),
-                unit_of_measurement: Some(device.degreetype.to_string()),
-                device: parent_device.clone(),
-                // TODO make this configurable?
-                expires_after: Some(600),
-                ..MQTTDiscoverySensor::default()
-            };
-            self.tx
-                .send(MQTTAction::Publish {
-                    topic: self.get_topic_device_channel_discovery(&hardware_id, &channel.channel),
-                    qos: QoS::AtMostOnce,
-                    retain: true,
-                    payload: channel_discovery.into(),
-                    props: None,
-                })
-                .await
-                .unwrap();
-        }
 
         // if drive_enabled {
         // set drive mqtt discovery
