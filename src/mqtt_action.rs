@@ -14,7 +14,6 @@ pub enum MQTTAction {
         payload: Bytes,
         props: Option<PublishProperties>,
     },
-    #[allow(dead_code)]
     Subscribe {
         topic: String,
         qos: QoS,

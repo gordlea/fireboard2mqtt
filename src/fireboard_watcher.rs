@@ -607,7 +607,7 @@ impl FireboardWatcher {
                     let rt_drivelog_request = self
                         .fb_client
                         .devices()
-                        .get_realtime_drivelog(device.uuid)
+                        .get_realtime_drivelog(device.uuid.clone())
                         .await;
                     if let Ok(rt_drivelog) = rt_drivelog_request {
                         if let Some(drivelog) = &rt_drivelog {

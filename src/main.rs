@@ -74,7 +74,9 @@ async fn main() {
                 } => {
                     trace!("publishing to mqtt: topic={:?}, qos={:?}, retain={:?}, payload={:?}, props={:?}", topic, qos, retain, payload, props);
                     if payload.is_empty() {
-                        warn!("publishing empty payload to topic: {}", topic)
+                        // An empty retained payload is how a retained topic gets deleted; the
+                        // watcher does this on purpose to clean up stale discovery configs.
+                        debug!("publishing empty payload to topic: {}", topic)
                     }
                     if let Some(properties) = props {
                         mqtt_client
