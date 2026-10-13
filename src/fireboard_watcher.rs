@@ -18,20 +18,118 @@ use crate::device::{
     MQTTDiscoverySensor,
 };
 use crate::drive::DriveAttributes;
-use crate::fireboard_api::{DriveModeType, FireboardApiClient, FireboardApiDevice};
-use crate::mqtt_action::MQTTAction;
+use crate::fireboard_api::{
+    DriveModeType, FireboardApiClient, FireboardApiDevice, FireboardDeviceChannel,
+};
+use crate::mqtt_action::{MQTTAction, MQTTInbound};
 use crate::utils::f32_to_u8_pct;
 
+/// What we last published in a channel's discovery config. If any of it changes the config is
+/// re-sent; otherwise it is left alone, because Home Assistant treats every (re)publish of a
+/// discovery config as a re-discovery and resets the entity to `unknown`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ChannelSignature {
+    pub label: String,
+    pub unit: String,
+}
+
+impl ChannelSignature {
+    fn of(device: &FireboardApiDevice, channel: &FireboardDeviceChannel) -> Self {
+        ChannelSignature {
+            label: channel.channel_label.clone(),
+            unit: device.degreetype.to_string(),
+        }
+    }
+}
+
+/// Per-device bookkeeping for the lifetime of this process.
+#[derive(Debug, Default)]
+pub(crate) struct DeviceDiscoveryState {
+    /// We asked the broker for this device's discovery topics (so retained configs get replayed).
+    subscribed: bool,
+    /// Battery and drive discovery configs have been published.
+    device_level_published: bool,
+    /// Channels whose discovery config we have published this run, with what we published.
+    channels: HashMap<usize, ChannelSignature>,
+    /// Channel discovery configs the broker holds as retained messages for this device.
+    retained_in_broker: HashSet<usize>,
+}
+
+impl DeviceDiscoveryState {
+    /// The live channels whose discovery config is missing or out of date.
+    fn channels_to_publish<'a>(
+        &self,
+        device: &'a FireboardApiDevice,
+    ) -> Vec<&'a FireboardDeviceChannel> {
+        device
+            .live_channels()
+            .filter(|channel| {
+                self.channels.get(&channel.channel) != Some(&ChannelSignature::of(device, channel))
+            })
+            .collect()
+    }
+
+    fn mark_channel_published(
+        &mut self,
+        device: &FireboardApiDevice,
+        channel: &FireboardDeviceChannel,
+    ) {
+        self.channels
+            .insert(channel.channel, ChannelSignature::of(device, channel));
+    }
+
+    /// Retained channel configs in the broker that belong to no live channel.
+    ///
+    /// A channel is never cleaned once this run has published it, so a channel that reported a
+    /// temperature earlier today survives the device going quiet.
+    fn channels_to_clean(&self, device: &FireboardApiDevice) -> Vec<usize> {
+        let live: HashSet<usize> = device.live_channels().map(|c| c.channel).collect();
+        let mut stale: Vec<usize> = self
+            .retained_in_broker
+            .iter()
+            .copied()
+            .filter(|channel| !self.channels.contains_key(channel) && !live.contains(channel))
+            .collect();
+        stale.sort_unstable();
+        stale
+    }
+}
+
+/// Reads `<discovery_prefix>/sensor/<hardware_id>/channel_<n>/config` back into its parts.
+/// Anything else (battery, drive, other prefixes, other integrations) yields `None`.
+pub(crate) fn parse_channel_config_topic(
+    discovery_prefix: &str,
+    topic: &str,
+) -> Option<(String, usize)> {
+    let rest = topic.strip_prefix(discovery_prefix)?.strip_prefix('/')?;
+    let mut parts = rest.split('/');
+    if parts.next()? != "sensor" {
+        return None;
+    }
+    let hardware_id = parts.next()?;
+    let channel_part = parts.next()?;
+    if parts.next()? != "config" || parts.next().is_some() || hardware_id.is_empty() {
+        return None;
+    }
+    let channel = channel_part.strip_prefix("channel_")?.parse::<usize>().ok()?;
+    Some((hardware_id.to_string(), channel))
+}
 
 pub struct FireboardWatcher {
     online_device_count: u8,
     fb_client: FireboardApiClient,
     tx: Sender<MQTTAction>,
+    rx_inbound: Receiver<MQTTInbound>,
     cfg: Fb2MqttConfig,
+    discovery: HashMap<String, DeviceDiscoveryState>,
 }
 
 impl FireboardWatcher {
-    pub async fn new(cfg: &Fb2MqttConfig, tx: Sender<MQTTAction>) -> Result<FireboardWatcher> {
+    pub async fn new(
+        cfg: &Fb2MqttConfig,
+        tx: Sender<MQTTAction>,
+        rx_inbound: Receiver<MQTTInbound>,
+    ) -> Result<FireboardWatcher> {
         let fb_client = FireboardApiClient::new(
             cfg.fireboardaccount_email.clone(),
             cfg.fireboardaccount_password.clone(),
@@ -43,10 +141,27 @@ impl FireboardWatcher {
             online_device_count: 0,
             fb_client,
             tx,
+            rx_inbound,
             cfg: cfg.clone(),
+            discovery: HashMap::new(),
         };
         fb_watcher.init().await;
         Ok(fb_watcher)
+    }
+
+    #[cfg(test)]
+    fn for_test(cfg: Fb2MqttConfig) -> (FireboardWatcher, Receiver<MQTTAction>) {
+        let (tx, rx_actions) = tokio::sync::mpsc::channel(64);
+        let (_tx_inbound, rx_inbound) = tokio::sync::mpsc::channel(8);
+        let watcher = FireboardWatcher {
+            online_device_count: 0,
+            fb_client: FireboardApiClient::unauthenticated(),
+            tx,
+            rx_inbound,
+            cfg,
+            discovery: HashMap::new(),
+        };
+        (watcher, rx_actions)
     }
 
     pub fn online_device_count(&self) -> u8 {
