@@ -3,11 +3,11 @@
   "packages": {
     ".": {
       "release-type": "rust",
+      "include-component-in-tag": false,
       "extra-files": [
         {
-          "type": "yaml",
-          "path": "addon/config.yaml",
-          "jsonpath": "$.version"
+          "type": "generic",
+          "path": "addon/config.yaml"
         }
       ]
     }
