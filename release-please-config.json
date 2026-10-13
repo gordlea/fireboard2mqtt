@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "rust",
+      "extra-files": [
+        {
+          "type": "yaml",
+          "path": "addon/config.yaml",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  }
+}
