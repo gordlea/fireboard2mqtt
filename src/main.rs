@@ -1,11 +1,13 @@
 use crate::{
-    config::load_cfg_from_env, fireboard_watcher::FireboardWatcher, mqtt_action::MQTTAction,
+    config::load_cfg_from_env,
+    fireboard_watcher::FireboardWatcher,
+    mqtt_action::{MQTTAction, MQTTInbound},
 };
 use env_logger::{Builder, Env};
 use human_bytes::human_bytes;
 use log::{debug, error, info, trace, warn};
 use memory_stats::memory_stats;
-use rumqttc::v5::{AsyncClient, MqttOptions};
+use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
 use std::process;
 use tokio::{
     sync::mpsc,
@@ -38,8 +40,11 @@ async fn main() {
     
 
     let (tx_mqtt, mut rx_mqtt) = mpsc::channel::<MQTTAction>(16);
+    // Messages the broker sends us (retained discovery configs replayed on subscribe) flow the
+    // other way, from the event loop below to the watcher.
+    let (tx_inbound, rx_inbound) = mpsc::channel::<MQTTInbound>(256);
     let mut watcher = {
-        let watcher_result = FireboardWatcher::new(&cfg, tx_mqtt.clone()).await;
+        let watcher_result = FireboardWatcher::new(&cfg, tx_mqtt.clone(), rx_inbound).await;
         if let Err(e) = watcher_result {
             error!("Error setting up FireboardWatcher: {:?}", e);
             process::exit(2);
@@ -144,6 +149,16 @@ async fn main() {
         match &event {
             Ok(v) => {
                 trace!("mqtt event: {v:?}");
+                if let Event::Incoming(Incoming::Publish(publish)) = v {
+                    let inbound = MQTTInbound {
+                        topic: String::from_utf8_lossy(&publish.topic).into_owned(),
+                        payload: publish.payload.clone(),
+                        retain: publish.retain,
+                    };
+                    if let Err(e) = tx_inbound.try_send(inbound) {
+                        warn!("dropping inbound mqtt message: {e}");
+                    }
+                }
             }
             Err(e) => {
                 error!("mqtt error: {e:?}");

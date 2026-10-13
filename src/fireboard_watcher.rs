@@ -2,10 +2,12 @@
 //! 
 //! This module is responsible for watching the Fireboard API and updating the MQTT broker with the latest data
 //! as changes occur. It also handles the MQTT discovery process for new devices and channels.
+use std::collections::{HashMap, HashSet};
+
 use chrono::Local;
 use rumqttc::v5::mqttbytes::v5::LastWill;
 use rumqttc::v5::mqttbytes::QoS;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use anyhow::Result;
 
