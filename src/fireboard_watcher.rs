@@ -744,7 +744,7 @@ impl FireboardWatcher {
                 serde_json::to_string_pretty(&returned_devices).unwrap()
             );
             #[cfg(not(feature = "pretty_print_json_logs"))]
-            trace!("devices fetched successfully: {:?}", &returned_devices);
+            trace!("devices fetched successfully: {:?}", returned_devices);
 
             self.online_device_count = 0;
 
