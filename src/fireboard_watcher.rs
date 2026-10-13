@@ -809,7 +809,7 @@ impl FireboardWatcher {
 
                 if device_online {
                     // do channel temperatures
-                    for channel in device.channels {
+                    for channel in device.live_channels() {
                         // let unique_id = format!("{}_{}", device.hardware_id.clone(), channel.channel);
                         let channel_topic =
                             self.get_topic_device_channel(&hardware_id, &channel.channel);
