@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Local};
 use log::{debug, error};
 use reqwest::{
-    header::{HeaderMap, HeaderValue},
+    header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, USER_AGENT as USER_AGENT_HEADER},
     Url,
 };
 use serde::{Deserialize, Deserializer, Serialize};
@@ -14,6 +14,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::{
     constants::USER_AGENT,
+    tls::ClientConfig,
     utils::deserialize_empty_object,
 };
 
@@ -143,29 +144,44 @@ impl From<String> for DriveModeType {
 
 pub struct FireboardApiClient {
     api_base: url::Url,
-    client: Arc<reqwest::Client>,
+    /// One client for login and polling. `reqwest::Client` is already reference
+    /// counted internally, so it is cheap to keep by value.
+    client: reqwest::Client,
+    /// `Token <key>` from the login response, sent on every API request.
+    auth_header: HeaderValue,
 }
 
 impl FireboardApiClient {
-    pub async fn new(user_email: String, user_password: String) -> Result<FireboardApiClient> {
+    pub async fn new(
+        user_email: String,
+        user_password: String,
+        tls: &Arc<ClientConfig>,
+    ) -> Result<FireboardApiClient> {
         let api_base = Url::parse("https://fireboard.io/api/")?;
 
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(USER_AGENT_HEADER, HeaderValue::from_static(USER_AGENT));
+
+        // reqwest takes the rustls config by value and downcasts it, so hand it a
+        // (cheap, Arc-backed) clone of the shared one rather than letting reqwest build
+        // a second root store of its own.
+        let client = reqwest::Client::builder()
+            .default_headers(headers)
+            .tls_backend_preconfigured(ClientConfig::clone(tls))
+            .build()?;
+
         let credentials = FireboardCloudApiAuthRequest {
-            username: user_email.to_string(),
-            password: user_password.to_string(),
+            username: user_email,
+            password: user_password,
         };
 
-        let auth_client = reqwest::Client::new();
-        let auth_result = auth_client
+        let auth_result = client
             .post("https://fireboard.io/api/rest-auth/login/")
-            .header("Content-Type", "application/json")
-            .header("User-Agent", USER_AGENT)
             .json(&credentials)
             .send()
             .await;
         if let Ok(auth_response) = auth_result {
-            // let auth_response = auth_result.unwrap();
-
             let auth = match auth_response.error_for_status() {
                 Ok(r) => r.json::<FireboardCloudApiAuthResponse>().await?,
                 Err(e) => {
@@ -174,22 +190,9 @@ impl FireboardApiClient {
                 }
             };
 
-            let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", HeaderValue::from_static("application/json"));
-            headers.insert("User-Agent", HeaderValue::from_static(USER_AGENT));
-            headers.insert(
-                "Authorization",
-                HeaderValue::from_str(format!("Token {}", auth.key).as_str())?,
-            );
+            let auth_header = HeaderValue::from_str(format!("Token {}", auth.key).as_str())?;
 
-            // set default client operation
-            let client = Arc::new(
-                reqwest::Client::builder()
-                    .default_headers(headers)
-                    .build()?,
-            );
-
-            Ok(FireboardApiClient { api_base, client })
+            Ok(FireboardApiClient { api_base, client, auth_header })
         } else {
             Err(anyhow::anyhow!(
                 "Error authenticating with Fireboard API! Check your username and password. {:?}", auth_result.unwrap_err()
@@ -206,7 +209,8 @@ impl FireboardApiClient {
     pub fn unauthenticated() -> FireboardApiClient {
         FireboardApiClient {
             api_base: Url::parse("https://fireboard.io/api/").unwrap(),
-            client: Arc::new(reqwest::Client::new()),
+            client: reqwest::Client::new(),
+            auth_header: HeaderValue::from_static(""),
         }
     }
 }
@@ -222,7 +226,13 @@ impl<'c> DevicesEndpoint<'c> {
         let base_endpoint = self.endpoint()?;
         let endpoint = base_endpoint.join("devices.json")?;
 
-        let request_attempt = self.0.client.get(endpoint).send().await;
+        let request_attempt = self
+            .0
+            .client
+            .get(endpoint)
+            .header(AUTHORIZATION, self.0.auth_header.clone())
+            .send()
+            .await;
 
         if let Err(e) = request_attempt {
             error!("Error getting devices: {}", e);
@@ -268,7 +278,13 @@ impl<'c> DevicesEndpoint<'c> {
         );
         let endpoint = Url::parse(&endpoint_str)?;
         // let endpoint = base_endpoint.join(format!("/{}/drivelog.json", device_uuid).as_str())?;
-        let response = self.0.client.get(endpoint).send().await?;
+        let response = self
+            .0
+            .client
+            .get(endpoint)
+            .header(AUTHORIZATION, self.0.auth_header.clone())
+            .send()
+            .await?;
 
         let response_text = response.text().await?;
 
@@ -288,6 +304,18 @@ mod tests {
     use super::*;
 
     const FBX2D: &str = include_str!("../tests/fixtures/devices_fbx2d.json");
+
+    /// reqwest downcasts the preconfigured TLS value to its own `rustls::ClientConfig`
+    /// and only fails at `build()` ("unknown TLS backend") if the types differ, which
+    /// would happen silently if two rustls versions ever ended up in the lockfile.
+    #[test]
+    fn shared_rustls_config_is_accepted_by_reqwest() {
+        let tls = crate::tls::build_client_config(None).expect("platform roots load");
+        let built = reqwest::Client::builder()
+            .tls_backend_preconfigured(ClientConfig::clone(&tls))
+            .build();
+        assert!(built.is_ok(), "{:?}", built.err());
+    }
 
     fn fixture() -> FireboardApiDevice {
         let mut devices: Vec<FireboardApiDevice> = serde_json::from_str(FBX2D).expect("fixture parses");

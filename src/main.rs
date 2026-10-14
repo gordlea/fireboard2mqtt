@@ -22,7 +22,7 @@ mod drive;
 mod fireboard_api;
 mod fireboard_watcher;
 mod mqtt_action;
-mod mqtt_tls;
+mod tls;
 mod utils;
 
 
@@ -44,8 +44,22 @@ async fn main() {
     // Messages the broker sends us (retained discovery configs replayed on subscribe) flow the
     // other way, from the event loop below to the watcher.
     let (tx_inbound, rx_inbound) = mpsc::channel::<MQTTInbound>(256);
+    // One rustls config for both the Fireboard API (reqwest) and the MQTT transport (rumqttc).
+    // The MQTT CA file only applies when the broker url actually uses tls, matching the
+    // "will be ignored" warning in config.rs.
+    let tls = {
+        let ca_file = if cfg.mqtt_use_tls { cfg.mqtt_tls_ca_file.as_deref() } else { None };
+        match tls::build_client_config(ca_file) {
+            Ok(tls) => tls,
+            Err(e) => {
+                error!("tls configuration error: {e:#}");
+                process::exit(1);
+            }
+        }
+    };
+
     let mut watcher = {
-        let watcher_result = FireboardWatcher::new(&cfg, tx_mqtt.clone(), rx_inbound).await;
+        let watcher_result = FireboardWatcher::new(&cfg, &tls, tx_mqtt.clone(), rx_inbound).await;
         if let Err(e) = watcher_result {
             error!("Error setting up FireboardWatcher: {:?}", e);
             process::exit(2);
@@ -72,14 +86,13 @@ async fn main() {
             cfg.mqtt_port,
         );
         if cfg.mqtt_use_tls {
-            match mqtt_tls::build_tls_transport(cfg.mqtt_tls_ca_file.as_deref()) {
-                Ok(transport) => mqtt_options.set_transport(transport),
-                Err(e) => {
-                    error!("mqtt tls configuration error: {e:#}");
-                    process::exit(1);
-                }
-            };
+            mqtt_options.set_transport(tls::mqtt_transport(&tls));
         }
+        // rumqttc sizes its outgoing-publish table from this limit and defaults to u16::MAX,
+        // which preallocates ~13.5 MiB (measured; see examples/memprobe.rs). Only QoS 1/2
+        // publishes occupy a slot and a full discovery burst is a few dozen, so 64 is plenty;
+        // if it is ever reached rumqttc simply applies back-pressure until acks arrive.
+        mqtt_options.set_outgoing_inflight_upper_limit(64);
         if let Some(mqtt_credentials) = cfg.mqtt_credentials {
             mqtt_options.set_credentials(mqtt_credentials.username, mqtt_credentials.password);
         }

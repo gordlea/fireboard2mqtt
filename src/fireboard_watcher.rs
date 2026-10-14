@@ -3,6 +3,7 @@
 //! This module is responsible for watching the Fireboard API and updating the MQTT broker with the latest data
 //! as changes occur. It also handles the MQTT discovery process for new devices and channels.
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use chrono::Local;
 use rumqttc::v5::mqttbytes::v5::LastWill;
@@ -24,6 +25,7 @@ use crate::fireboard_api::{
     DriveModeType, FireboardApiClient, FireboardApiDevice, FireboardDeviceChannel,
 };
 use crate::mqtt_action::{MQTTAction, MQTTInbound};
+use crate::tls::ClientConfig;
 use crate::utils::f32_to_u8_pct;
 
 /// What we last published in a channel's discovery config. If any of it changes the config is
@@ -129,12 +131,14 @@ pub struct FireboardWatcher {
 impl FireboardWatcher {
     pub async fn new(
         cfg: &Fb2MqttConfig,
+        tls: &Arc<ClientConfig>,
         tx: Sender<MQTTAction>,
         rx_inbound: Receiver<MQTTInbound>,
     ) -> Result<FireboardWatcher> {
         let fb_client = FireboardApiClient::new(
             cfg.fireboardaccount_email.clone(),
             cfg.fireboardaccount_password.clone(),
+            tls,
         )
         .await?;
         debug!("client authenticated successfully");

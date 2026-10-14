@@ -78,7 +78,8 @@ FB2MQTT_MQTT_URL=<mqtturl>
 
 # (optional) path to a pem file containing one or more extra ca certificates to
 # trust when connecting over tls, for brokers with a self-signed or private ca
-# (e.g. the home assistant mosquitto addon). ignored for mqtt:// urls.
+# (e.g. the home assistant mosquitto addon). ignored for mqtt:// urls. the same
+# trust store (system roots plus this file) is used for the fireboard cloud api.
 FB2MQTT_MQTT_TLS_CA_FILE=/path/to/ca.pem
 
 # (optional, default="") the mqtt broker username, if it is running as a home 

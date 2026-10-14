@@ -1,10 +1,11 @@
-//! Builds the rustls transport used when the mqtt broker url has a tls scheme.
+//! The single rustls client configuration shared by the Fireboard API client
+//! (reqwest) and the MQTT transport (rumqttc).
 //!
-//! rumqttc's `Transport::tls_with_default_config()` panics if the platform
-//! certificate store cannot be read and offers no way to trust a private CA,
-//! which is the common case for a self-signed Home Assistant Mosquitto add-on.
-//! This module builds the root store by hand so both problems become ordinary
-//! configuration errors.
+//! Building it once matters for memory: each rustls config parses the platform
+//! root store and keeps its own verifier state, and the process used to build
+//! three of them. Building it by hand also turns an unreadable platform store or
+//! a bad `FB2MQTT_MQTT_TLS_CA_FILE` into an ordinary configuration error instead
+//! of the panic inside rumqttc's `Transport::tls_with_default_config()`.
 
 use std::{fs, sync::Arc};
 
@@ -12,13 +13,18 @@ use anyhow::{bail, Context, Result};
 use log::{debug, warn};
 use rumqttc::tokio_rustls::rustls::{
     pki_types::{pem::PemObject, CertificateDer},
-    ClientConfig, RootCertStore,
+    RootCertStore,
 };
 use rumqttc::{TlsConfiguration, Transport};
 
-/// Builds a TLS transport that trusts the platform root certificates plus, when
-/// given, every certificate in the PEM file at `ca_file`.
-pub fn build_tls_transport(ca_file: Option<&str>) -> Result<Transport> {
+/// Re-exported so the rest of the crate names rustls through one path. reqwest
+/// downcasts to exactly this type, which only works because the lockfile holds a
+/// single rustls version.
+pub use rumqttc::tokio_rustls::rustls::ClientConfig;
+
+/// Builds a client configuration that trusts the platform root certificates
+/// plus, when given, every certificate in the PEM file at `ca_file`.
+pub fn build_client_config(ca_file: Option<&str>) -> Result<Arc<ClientConfig>> {
     let mut root_store = RootCertStore::empty();
 
     let native = rustls_native_certs::load_native_certs();
@@ -52,15 +58,20 @@ pub fn build_tls_transport(ca_file: Option<&str>) -> Result<Transport> {
         .with_root_certificates(root_store)
         .with_no_client_auth();
 
-    Ok(Transport::tls_with_config(TlsConfiguration::Rustls(Arc::new(client_config))))
+    Ok(Arc::new(client_config))
+}
+
+/// The rumqttc transport for a `mqtts://` broker, using the shared configuration.
+pub fn mqtt_transport(tls: &Arc<ClientConfig>) -> Transport {
+    Transport::tls_with_config(TlsConfiguration::Rustls(tls.clone()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// `Transport` has no `Debug` impl, so `unwrap_err` is not available.
-    fn expect_err(result: Result<Transport>) -> String {
+    /// `ClientConfig` has no `Debug` impl, so `unwrap_err` is not available.
+    fn expect_err(result: Result<Arc<ClientConfig>>) -> String {
         match result {
             Ok(_) => panic!("expected an error"),
             Err(e) => format!("{e:#}"),
@@ -77,19 +88,19 @@ mod tests {
     fn platform_roots_alone_are_enough() {
         // Requires a readable platform cert store, which every supported host and
         // both docker images (ca-certificates) provide.
-        assert!(build_tls_transport(None).is_ok());
+        assert!(build_client_config(None).is_ok());
     }
 
     #[test]
     fn missing_ca_file_is_an_error_not_a_panic() {
-        let err = expect_err(build_tls_transport(Some("/nonexistent/fb2mqtt-ca.pem")));
+        let err = expect_err(build_client_config(Some("/nonexistent/fb2mqtt-ca.pem")));
         assert!(err.contains("/nonexistent/fb2mqtt-ca.pem"), "{err}");
     }
 
     #[test]
     fn ca_file_without_certificates_is_an_error() {
         let path = scratch_file("empty.pem", b"this is not a certificate\n");
-        let err = expect_err(build_tls_transport(path.to_str()));
+        let err = expect_err(build_client_config(path.to_str()));
         let _ = fs::remove_file(&path);
         assert!(err.contains("no certificates found"), "{err}");
     }
@@ -97,7 +108,7 @@ mod tests {
     #[test]
     fn ca_file_with_garbage_pem_is_an_error() {
         let path = scratch_file("garbage.pem", b"-----BEGIN CERTIFICATE-----\nnot base64!!\n-----END CERTIFICATE-----\n");
-        let err = expect_err(build_tls_transport(path.to_str()));
+        let err = expect_err(build_client_config(path.to_str()));
         let _ = fs::remove_file(&path);
         assert!(err.contains("could not parse"), "{err}");
     }
