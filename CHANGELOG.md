@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.3.0](https://github.com/gordlea/fireboard2mqtt/compare/v3.2.1...v3.3.0) (2026-10-14)
+
+
+### Features
+
+* add support for tls connections to mqtt broker (thanks [@nomis52](https://github.com/nomis52)!) ([b318fa2](https://github.com/gordlea/fireboard2mqtt/commit/b318fa2a4e6d317b803340d67db1e914e01bb3d9))
+* add tls support ([#90](https://github.com/gordlea/fireboard2mqtt/issues/90)) ([b318fa2](https://github.com/gordlea/fireboard2mqtt/commit/b318fa2a4e6d317b803340d67db1e914e01bb3d9))
+
+
+### Bug Fixes
+
+* bump deps to latest ([b318fa2](https://github.com/gordlea/fireboard2mqtt/commit/b318fa2a4e6d317b803340d67db1e914e01bb3d9))
+
 ## [3.2.1](https://github.com/gordlea/fireboard2mqtt/compare/v3.2.0...v3.2.1) (2026-10-13)
 
 
