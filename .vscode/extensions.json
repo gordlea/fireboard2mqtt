@@ -4,7 +4,6 @@
         "fill-labs.dependi",
         "vadimcn.vscode-lldb",
         "jinxdash.prettier-rust",
-        "rust-lang.rust-analyzer",
-        "gruntfuggly.todo-tree"
+        "rust-lang.rust-analyzer"
     ]
 }

@@ -15,6 +15,8 @@ arch:
   - aarch64
 init: false
 host_network: false
+map:
+  - ssl:ro
 startup: application
 boot: auto
 options:
@@ -29,6 +31,7 @@ schema:
   fireboard_api_update_interval_seconds: "int?"
   fireboard_api_update_interval_seconds_when_offline: "int?"
   override_mqtt_url: "str?"
+  mqtt_tls_ca_file: "str?"
   mqtt_force_anonymous_credentials: "bool?"
   override_mqtt_username: "str?"
   override_mqtt_password: "password?"
