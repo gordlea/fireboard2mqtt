@@ -69,8 +69,17 @@ FB2MQTT_FIREBOARDACCOUNT_PASSWORD=<password>
 # (optional, default=false) if you own a fireboard drive you should set this to true
 FB2MQTT_FIREBOARD_ENABLE_DRIVE=<true|false>
 
-# (optional, default=mqtt://localhost:1883) the url of the mqtt broker to connect to
+# (optional, default=mqtt://localhost:1883) the url of the mqtt broker to connect to.
+# use mqtt://host[:port] for a plaintext connection (default port 1883) or
+# mqtts://host[:port] for tls (default port 8883; ssl:// and tls:// are accepted
+# aliases). any other scheme is a configuration error. ipv6 hosts go in brackets,
+# e.g. mqtts://[fd00::10]:8883. tls connections trust the system ca store.
 FB2MQTT_MQTT_URL=<mqtturl>
+
+# (optional) path to a pem file containing one or more extra ca certificates to
+# trust when connecting over tls, for brokers with a self-signed or private ca
+# (e.g. the home assistant mosquitto addon). ignored for mqtt:// urls.
+FB2MQTT_MQTT_TLS_CA_FILE=/path/to/ca.pem
 
 # (optional, default="") the mqtt broker username, if it is running as a home 
 # assistant addon, use your home assistant username

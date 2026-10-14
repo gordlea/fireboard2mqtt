@@ -1076,6 +1076,8 @@ mod tests {
             fireboard_api_device_offline_update_interval_seconds: 90,
             mqtt_host: "localhost".into(),
             mqtt_port: 1883,
+            mqtt_use_tls: false,
+            mqtt_tls_ca_file: None,
             mqtt_discovery_topic: discovery_prefix.into(),
             mqtt_base_topic: "fireboard2mqtt".into(),
             mqtt_credentials: None,

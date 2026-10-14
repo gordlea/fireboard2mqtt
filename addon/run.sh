@@ -64,6 +64,11 @@ else
     bashio::log.info "using mqtt service url from home-assistant: ${FB2MQTT_MQTT_URL}"
 fi
 
+if bashio::config.has_value 'mqtt_tls_ca_file'; then
+    export FB2MQTT_MQTT_TLS_CA_FILE="$(bashio::config 'mqtt_tls_ca_file')"
+    bashio::log.info "found user supplied mqtt_tls_ca_file: ${FB2MQTT_MQTT_TLS_CA_FILE}"
+fi
+
 if bashio::config.has_value 'mqtt_discovery_prefix'; then
     export FB2MQTT_MQTT_DISCOVERY_TOPIC="$(bashio::config 'mqtt_discovery_prefix')"
 fi

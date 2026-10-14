@@ -7,7 +7,6 @@ use env_logger::{Builder, Env};
 use human_bytes::human_bytes;
 use log::{debug, error, info, trace, warn};
 use memory_stats::memory_stats;
-use rumqttc::Transport;
 use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
 use std::process;
 use tokio::{
@@ -23,6 +22,7 @@ mod drive;
 mod fireboard_api;
 mod fireboard_watcher;
 mod mqtt_action;
+mod mqtt_tls;
 mod utils;
 
 
@@ -53,17 +53,32 @@ async fn main() {
         watcher_result.unwrap()
     };
 
+    let mqtt_use_tls = cfg.mqtt_use_tls;
     let (mqtt_client, mut mqtt_eventloop) = {
         let cfg = cfg.clone();
-        info!("connecting to mqtt broker at {}:{} with clientId {}", cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_clientid);
+        let scheme = if cfg.mqtt_use_tls { "mqtts" } else { "mqtt" };
+        let ca_note = match (cfg.mqtt_use_tls, &cfg.mqtt_tls_ca_file) {
+            (true, Some(path)) => format!(" (tls, trusting system roots plus {path})"),
+            (true, None) => " (tls, trusting system roots)".to_string(),
+            (false, _) => String::new(),
+        };
+        info!(
+            "connecting to mqtt broker at {}://{}:{} with clientId {}{}",
+            scheme, cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_clientid, ca_note
+        );
         let mut mqtt_options = MqttOptions::new(
             cfg.mqtt_clientid.clone(),
             cfg.mqtt_host.clone(),
             cfg.mqtt_port,
         );
         if cfg.mqtt_use_tls {
-            info!("mqtt broker url uses a tls scheme, connecting with TLS (using system root certificates)");
-            mqtt_options.set_transport(Transport::tls_with_default_config());
+            match mqtt_tls::build_tls_transport(cfg.mqtt_tls_ca_file.as_deref()) {
+                Ok(transport) => mqtt_options.set_transport(transport),
+                Err(e) => {
+                    error!("mqtt tls configuration error: {e:#}");
+                    process::exit(1);
+                }
+            };
         }
         if let Some(mqtt_credentials) = cfg.mqtt_credentials {
             mqtt_options.set_credentials(mqtt_credentials.username, mqtt_credentials.password);
@@ -166,7 +181,14 @@ async fn main() {
                 }
             }
             Err(e) => {
-                error!("mqtt error: {e:?}");
+                error!("mqtt error: {e}");
+                if mqtt_use_tls {
+                    error!(
+                        "the mqtt connection uses tls: check that the broker is listening for tls on this port \
+                         (use mqtt:// for a plaintext broker) and, for a self-signed or private ca, point \
+                         FB2MQTT_MQTT_TLS_CA_FILE at its ca certificate"
+                    );
+                }
                 process::exit(3);
             }
         }
