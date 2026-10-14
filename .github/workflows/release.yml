@@ -50,7 +50,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       sync: ${{ steps.meta.outputs.sync }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: meta
         env:
@@ -90,7 +90,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -118,7 +118,7 @@ jobs:
             runner: ubuntu-24.04-arm
             platform: linux/arm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: docker/setup-buildx-action@v3
 
@@ -238,13 +238,13 @@ jobs:
       CHANNEL: ${{ needs.meta.outputs.channel }}
       VERSION: ${{ needs.meta.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: src
           # Full history and tags: the edge changelog lists commits since the last stable tag.
           fetch-depth: 0
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: gordlea/home-assistant-addons
           token: ${{ secrets.RELEASE_PLEASE_GITHUB_TOKEN }}
