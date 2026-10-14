@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   rust:
+    # release.yml repeats these steps as its `test` job for edge builds from main; keep both in sync.
     name: cargo test + clippy
     runs-on: ubuntu-latest
     steps:

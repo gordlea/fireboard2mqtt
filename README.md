@@ -127,9 +127,18 @@ is only a distribution repository that CI writes to.
    then copies `addon/` and `CHANGELOG.md` into `home-assistant-addons/fireboard2mqtt` and pushes that commit, which is
    what makes the new version show up in the Home Assistant add-on store.
 
+### Edge builds
+
+Every push to `main` (other than release-please's own release commit) also runs `release.yml` on the *edge* channel:
+it runs the tests and clippy, builds both image targets and pushes them tagged `edge` and
+`<stable>-edge.<YYYYMMDD>.<sha>` (for example `3.3.0-edge.20261014.750b03f`), then writes a second add-on,
+`home-assistant-addons/fireboard2mqtt-edge` (slug `fireboard2mqtt_edge`, shown as "Fireboard 2 MQTT (edge)"), with
+that version. Home Assistant offers an update for the edge add-on on every commit. Stable tags and the stable add-on
+are never touched by edge builds. `docker run ... ghcr.io/gordlea/fireboard2mqtt:edge` follows `main` for standalone use.
+
 `.github/workflows/ci.yml` runs the tests, clippy and a no-push build of both image targets on every pull request.
-To exercise the release workflow without releasing, run it manually from the Actions tab: it pushes `edge` tags and
-skips the add-on repository.
+To exercise the release workflow without releasing, run it manually from the Actions tab: it behaves like an edge
+build and leaves the add-on repository alone unless you tick `sync_addon`.
 
 The add-on definition (`addon/config.yaml`, `addon/run.sh`, the add-on README and icons) lives here; edit it here,
 never in the add-on repository.

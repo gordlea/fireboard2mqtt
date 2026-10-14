@@ -21,6 +21,8 @@ In home assistant, go to the addon store, click the 3 dots and choose repositori
 
 The fireboard2mqtt addon should be available to install in the addon store now.
 
+The same repository also offers "Fireboard 2 MQTT (edge)", rebuilt from every commit to `main`, for testing fixes before they are released. Run only one of the two at a time: they share the same MQTT client id and topics.
+
 ## Configure
 
 Once it is installed, use the addon configuration tab to enter your fireboard account credentials, and your mqtt server url. Mqtt username/password are optional.

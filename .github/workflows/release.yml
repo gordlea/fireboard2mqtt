@@ -1,42 +1,108 @@
 name: Release images
 
-# Runs when release-please publishes a GitHub release (merge of its release PR).
 # Builds natively per architecture, pushes to GHCR, then updates the add-on repository.
+# Three ways in, resolved into a "channel" by the `meta` job:
 #
-# `workflow_dispatch` is a dry run: images are pushed under the `edge` tag and the add-on
-# repository is left alone.
+#   release (published)   stable: tags X.Y.Z / X.Y / X / latest, updates fireboard2mqtt/ in the
+#                         add-on repository. This is what release-please's release PR triggers.
+#   push to main          edge:   tags <stable>-edge.<date>.<sha> / edge, updates fireboard2mqtt-edge/
+#                         in the add-on repository. release-please's own release commit is skipped,
+#                         the release event covers it.
+#   workflow_dispatch     edge, but the add-on repository is only touched when `sync_addon` is set,
+#                         so the default is a dry run.
+#
+# A GitHub pre-release (not something release-please produces today) is treated like a dispatch.
 
 on:
   release:
     types: [published]
+  push:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      sync_addon:
+        description: Also update the edge add-on in gordlea/home-assistant-addons
+        type: boolean
+        default: false
 
 # No default token scopes; each job below declares exactly what it needs.
 permissions: {}
+
+# Rapid pushes to main only build the newest commit. Releases are never cancelled.
+concurrency:
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 env:
   STANDALONE_IMAGE: ghcr.io/gordlea/fireboard2mqtt
   ADDON_IMAGE_PREFIX: ghcr.io/gordlea/fireboard2mqtt-addon
 
 jobs:
-  version:
-    name: resolve version
+  meta:
+    name: resolve channel and version
     runs-on: ubuntu-latest
+    # Every other job needs this one, so skipping it skips the whole run.
+    if: "${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(main): release') }}"
+    permissions:
+      contents: read
     outputs:
-      version: ${{ steps.v.outputs.version }}
+      channel: ${{ steps.meta.outputs.channel }}
+      version: ${{ steps.meta.outputs.version }}
+      sync: ${{ steps.meta.outputs.sync }}
     steps:
-      - id: v
+      - uses: actions/checkout@v4
+
+      - id: meta
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+          SYNC_INPUT: ${{ inputs.sync_addon }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            tag='${{ github.event.release.tag_name }}'
-            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = release ] && [ "$PRERELEASE" != true ]; then
+            channel=stable
+            version="${TAG#v}"
+            sync=true
           else
-            echo "version=edge" >> "$GITHUB_OUTPUT"
+            channel=edge
+            stable=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+            version="${stable}-edge.$(date -u +%Y%m%d).$(git rev-parse --short=7 HEAD)"
+            if [ "$EVENT" = push ]; then
+              sync=true
+            else
+              sync="${SYNC_INPUT:-false}"
+            fi
           fi
+          echo "channel=$channel version=$version sync=$sync"
+          {
+            echo "channel=$channel"
+            echo "version=$version"
+            echo "sync=$sync"
+          } >> "$GITHUB_OUTPUT"
+
+  # Edge builds come straight from main, which has no required checks, so gate them on the same
+  # steps as ci.yml. Stable releases already went through CI on the release PR.
+  test:
+    name: cargo test + clippy
+    needs: meta
+    if: needs.meta.outputs.channel == 'edge'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked
+      - run: cargo clippy --all-targets --locked -- -D warnings
 
   build:
     name: build ${{ matrix.arch }}
-    needs: version
+    needs: [meta, test]
+    # `test` is skipped on the stable channel; that must not skip the build.
+    if: ${{ !cancelled() && needs.meta.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -90,15 +156,15 @@ jobs:
           retention-days: 1
 
       # Add-on: one image per Home Assistant architecture name, tagged with the add-on version.
-      # A dry run (workflow_dispatch) only gets `edge`, never `latest`.
+      # Only the stable channel moves `latest`; the edge channel moves `edge`.
       - id: addon_meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.ADDON_IMAGE_PREFIX }}-${{ matrix.arch }}
           tags: |
-            type=raw,value=edge,enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=raw,value=${{ needs.version.outputs.version }},enable=${{ github.event_name == 'release' }}
-            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+            type=raw,value=${{ needs.meta.outputs.version }}
+            type=raw,value=edge,enable=${{ needs.meta.outputs.channel == 'edge' }}
+            type=raw,value=latest,enable=${{ needs.meta.outputs.channel == 'stable' }}
 
       - name: build add-on
         uses: docker/build-push-action@v6
@@ -113,13 +179,13 @@ jobs:
           build-args: |
             BUILD_FROM=ghcr.io/home-assistant/${{ matrix.arch }}-base-debian:trixie
             BUILD_ARCH=${{ matrix.arch }}
-            BUILD_VERSION=${{ needs.version.outputs.version }}
+            BUILD_VERSION=${{ needs.meta.outputs.version }}
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,scope=${{ matrix.arch }},mode=max
 
   merge:
     name: publish standalone manifest
-    needs: [version, build]
+    needs: [meta, build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -144,11 +210,12 @@ jobs:
         with:
           images: ${{ env.STANDALONE_IMAGE }}
           tags: |
-            type=raw,value=edge,enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=semver,pattern={{version}},value=v${{ needs.version.outputs.version }},enable=${{ github.event_name == 'release' }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.version.outputs.version }},enable=${{ github.event_name == 'release' }}
-            type=semver,pattern={{major}},value=v${{ needs.version.outputs.version }},enable=${{ github.event_name == 'release' }}
-            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+            type=raw,value=${{ needs.meta.outputs.version }},enable=${{ needs.meta.outputs.channel == 'edge' }}
+            type=raw,value=edge,enable=${{ needs.meta.outputs.channel == 'edge' }}
+            type=semver,pattern={{version}},value=v${{ needs.meta.outputs.version }},enable=${{ needs.meta.outputs.channel == 'stable' }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.meta.outputs.version }},enable=${{ needs.meta.outputs.channel == 'stable' }}
+            type=semver,pattern={{major}},value=v${{ needs.meta.outputs.version }},enable=${{ needs.meta.outputs.channel == 'stable' }}
+            type=raw,value=latest,enable=${{ needs.meta.outputs.channel == 'stable' }}
 
       - name: create manifest
         working-directory: /tmp/digests
@@ -158,19 +225,24 @@ jobs:
             $(printf '${{ env.STANDALONE_IMAGE }}@sha256:%s ' *)
 
       - name: inspect manifest
-        run: docker buildx imagetools inspect ${{ env.STANDALONE_IMAGE }}:${{ needs.version.outputs.version }}
+        run: docker buildx imagetools inspect ${{ env.STANDALONE_IMAGE }}:${{ needs.meta.outputs.version }}
 
   sync-addon-repo:
     name: update home-assistant-addons
-    if: github.event_name == 'release'
-    needs: [version, build]
+    if: needs.meta.outputs.sync == 'true'
+    needs: [meta, build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      CHANNEL: ${{ needs.meta.outputs.channel }}
+      VERSION: ${{ needs.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           path: src
+          # Full history and tags: the edge changelog lists commits since the last stable tag.
+          fetch-depth: 0
 
       - uses: actions/checkout@v4
         with:
@@ -178,20 +250,70 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_GITHUB_TOKEN }}
           path: addons
 
-      - name: copy add-on manifest files
+      - name: stage stable add-on
+        if: env.CHANNEL == 'stable'
         run: |
           cp src/addon/config.yaml src/addon/README.md src/addon/icon.png src/addon/logo.png src/addon/screenshot.png addons/fireboard2mqtt/
           cp src/CHANGELOG.md addons/fireboard2mqtt/CHANGELOG.md
+
+      # The edge add-on is the stable manifest with a different slug/name and the edge version, so
+      # addon/config.yaml stays the single source of truth. yq (v4) is preinstalled on the runner.
+      - name: stage edge add-on
+        if: env.CHANNEL == 'edge'
+        run: |
+          dir=addons/fireboard2mqtt-edge
+          mkdir -p "$dir"
+          cp src/addon/config.yaml src/addon/icon.png src/addon/logo.png src/addon/screenshot.png "$dir/"
+
+          yq -i '
+            .name = "Fireboard 2 MQTT (edge)" |
+            .slug = "fireboard2mqtt_edge" |
+            .version = strenv(VERSION) |
+            .stage = "experimental" |
+            .description = "Edge build from the latest commit on main. " + .description |
+            .version line_comment = ""
+          ' "$dir/config.yaml"
+
+          {
+            echo '> **This is the edge build of fireboard2mqtt.** It is rebuilt from every commit to `main` and may contain untested changes.'
+            echo '> Do not run it at the same time as the stable `Fireboard 2 MQTT` add-on: both use the same MQTT client id and topics.'
+            echo '> Stable releases are published as the `fireboard2mqtt` add-on in this same repository.'
+            echo
+            cat src/addon/README.md
+          } > "$dir/README.md"
+
+          stable="${VERSION%%-edge.*}"
+          sha=$(git -C src rev-parse HEAD)
+          {
+            echo '# Changelog'
+            echo
+            echo "## ${VERSION}"
+            echo
+            echo "Edge build from commit [${sha:0:7}](https://github.com/gordlea/fireboard2mqtt/commit/${sha}) on $(date -u +%Y-%m-%d)."
+            echo
+            if git -C src rev-parse -q --verify "refs/tags/v${stable}" >/dev/null; then
+              echo "Unreleased changes since [v${stable}](https://github.com/gordlea/fireboard2mqtt/releases/tag/v${stable}):"
+              echo
+              git -C src log --format='- %s (%h)' "v${stable}..HEAD" | grep . || echo "- none, this build is the v${stable} release commit"
+            else
+              echo "Changes since the last stable release could not be determined (tag v${stable} not found)."
+            fi
+          } > "$dir/CHANGELOG.md"
 
       - name: commit and push
         working-directory: addons
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add fireboard2mqtt
+          if [ "$CHANNEL" = stable ]; then dir=fireboard2mqtt; else dir=fireboard2mqtt-edge; fi
+          git add "$dir"
           if git diff --cached --quiet; then
             echo "add-on repository already up to date"
             exit 0
           fi
-          git commit -m "chore(fireboard2mqtt): release ${{ needs.version.outputs.version }}"
+          if [ "$CHANNEL" = stable ]; then
+            git commit -m "chore(fireboard2mqtt): release ${VERSION}"
+          else
+            git commit -m "chore(fireboard2mqtt-edge): ${VERSION}"
+          fi
           git push
