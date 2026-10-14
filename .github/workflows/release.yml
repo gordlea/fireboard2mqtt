@@ -158,7 +158,7 @@ jobs:
       # Add-on: one image per Home Assistant architecture name, tagged with the add-on version.
       # Only the stable channel moves `latest`; the edge channel moves `edge`.
       - id: addon_meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.ADDON_IMAGE_PREFIX }}-${{ matrix.arch }}
           tags: |
@@ -206,7 +206,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.STANDALONE_IMAGE }}
           tags: |
