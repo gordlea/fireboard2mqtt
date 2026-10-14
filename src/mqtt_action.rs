@@ -14,7 +14,6 @@ pub enum MQTTAction {
         payload: Bytes,
         props: Option<PublishProperties>,
     },
-    #[allow(dead_code)]
     Subscribe {
         topic: String,
         qos: QoS,
@@ -29,3 +28,14 @@ pub enum MQTTAction {
 
 unsafe impl Send for MQTTAction {}
 unsafe impl Sync for MQTTAction {}
+
+/// A message the broker delivered to us. Only the fields the watcher needs are carried.
+#[derive(Debug, Clone)]
+pub struct MQTTInbound {
+    pub topic: String,
+    pub payload: Bytes,
+    /// Set by the broker when this message was replayed from its retained store (i.e. on
+    /// subscribe), as opposed to forwarded live. That distinction is what the stale-discovery
+    /// cleanup relies on.
+    pub retain: bool,
+}

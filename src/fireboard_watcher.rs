@@ -2,10 +2,12 @@
 //! 
 //! This module is responsible for watching the Fireboard API and updating the MQTT broker with the latest data
 //! as changes occur. It also handles the MQTT discovery process for new devices and channels.
+use std::collections::{HashMap, HashSet};
+
 use chrono::Local;
 use rumqttc::v5::mqttbytes::v5::LastWill;
 use rumqttc::v5::mqttbytes::QoS;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use anyhow::Result;
 
@@ -18,20 +20,118 @@ use crate::device::{
     MQTTDiscoverySensor,
 };
 use crate::drive::DriveAttributes;
-use crate::fireboard_api::{DriveModeType, FireboardApiClient, FireboardApiDevice};
-use crate::mqtt_action::MQTTAction;
+use crate::fireboard_api::{
+    DriveModeType, FireboardApiClient, FireboardApiDevice, FireboardDeviceChannel,
+};
+use crate::mqtt_action::{MQTTAction, MQTTInbound};
 use crate::utils::f32_to_u8_pct;
 
+/// What we last published in a channel's discovery config. If any of it changes the config is
+/// re-sent; otherwise it is left alone, because Home Assistant treats every (re)publish of a
+/// discovery config as a re-discovery and resets the entity to `unknown`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ChannelSignature {
+    pub label: String,
+    pub unit: String,
+}
+
+impl ChannelSignature {
+    fn of(device: &FireboardApiDevice, channel: &FireboardDeviceChannel) -> Self {
+        ChannelSignature {
+            label: channel.channel_label.clone(),
+            unit: device.degreetype.to_string(),
+        }
+    }
+}
+
+/// Per-device bookkeeping for the lifetime of this process.
+#[derive(Debug, Default)]
+pub(crate) struct DeviceDiscoveryState {
+    /// We asked the broker for this device's discovery topics (so retained configs get replayed).
+    subscribed: bool,
+    /// Battery and drive discovery configs have been published.
+    device_level_published: bool,
+    /// Channels whose discovery config we have published this run, with what we published.
+    channels: HashMap<usize, ChannelSignature>,
+    /// Channel discovery configs the broker holds as retained messages for this device.
+    retained_in_broker: HashSet<usize>,
+}
+
+impl DeviceDiscoveryState {
+    /// The live channels whose discovery config is missing or out of date.
+    fn channels_to_publish<'a>(
+        &self,
+        device: &'a FireboardApiDevice,
+    ) -> Vec<&'a FireboardDeviceChannel> {
+        device
+            .live_channels()
+            .filter(|channel| {
+                self.channels.get(&channel.channel) != Some(&ChannelSignature::of(device, channel))
+            })
+            .collect()
+    }
+
+    fn mark_channel_published(
+        &mut self,
+        device: &FireboardApiDevice,
+        channel: &FireboardDeviceChannel,
+    ) {
+        self.channels
+            .insert(channel.channel, ChannelSignature::of(device, channel));
+    }
+
+    /// Retained channel configs in the broker that belong to no live channel.
+    ///
+    /// A channel is never cleaned once this run has published it, so a channel that reported a
+    /// temperature earlier today survives the device going quiet.
+    fn channels_to_clean(&self, device: &FireboardApiDevice) -> Vec<usize> {
+        let live: HashSet<usize> = device.live_channels().map(|c| c.channel).collect();
+        let mut stale: Vec<usize> = self
+            .retained_in_broker
+            .iter()
+            .copied()
+            .filter(|channel| !self.channels.contains_key(channel) && !live.contains(channel))
+            .collect();
+        stale.sort_unstable();
+        stale
+    }
+}
+
+/// Reads `<discovery_prefix>/sensor/<hardware_id>/channel_<n>/config` back into its parts.
+/// Anything else (battery, drive, other prefixes, other integrations) yields `None`.
+pub(crate) fn parse_channel_config_topic(
+    discovery_prefix: &str,
+    topic: &str,
+) -> Option<(String, usize)> {
+    let rest = topic.strip_prefix(discovery_prefix)?.strip_prefix('/')?;
+    let mut parts = rest.split('/');
+    if parts.next()? != "sensor" {
+        return None;
+    }
+    let hardware_id = parts.next()?;
+    let channel_part = parts.next()?;
+    if parts.next()? != "config" || parts.next().is_some() || hardware_id.is_empty() {
+        return None;
+    }
+    let channel = channel_part.strip_prefix("channel_")?.parse::<usize>().ok()?;
+    Some((hardware_id.to_string(), channel))
+}
 
 pub struct FireboardWatcher {
     online_device_count: u8,
     fb_client: FireboardApiClient,
     tx: Sender<MQTTAction>,
+    rx_inbound: Receiver<MQTTInbound>,
     cfg: Fb2MqttConfig,
+    discovery: HashMap<String, DeviceDiscoveryState>,
 }
 
 impl FireboardWatcher {
-    pub async fn new(cfg: &Fb2MqttConfig, tx: Sender<MQTTAction>) -> Result<FireboardWatcher> {
+    pub async fn new(
+        cfg: &Fb2MqttConfig,
+        tx: Sender<MQTTAction>,
+        rx_inbound: Receiver<MQTTInbound>,
+    ) -> Result<FireboardWatcher> {
         let fb_client = FireboardApiClient::new(
             cfg.fireboardaccount_email.clone(),
             cfg.fireboardaccount_password.clone(),
@@ -43,10 +143,27 @@ impl FireboardWatcher {
             online_device_count: 0,
             fb_client,
             tx,
+            rx_inbound,
             cfg: cfg.clone(),
+            discovery: HashMap::new(),
         };
         fb_watcher.init().await;
         Ok(fb_watcher)
+    }
+
+    #[cfg(test)]
+    fn for_test(cfg: Fb2MqttConfig) -> (FireboardWatcher, Receiver<MQTTAction>) {
+        let (tx, rx_actions) = tokio::sync::mpsc::channel(64);
+        let (_tx_inbound, rx_inbound) = tokio::sync::mpsc::channel(8);
+        let watcher = FireboardWatcher {
+            online_device_count: 0,
+            fb_client: FireboardApiClient::unauthenticated(),
+            tx,
+            rx_inbound,
+            cfg,
+            discovery: HashMap::new(),
+        };
+        (watcher, rx_actions)
     }
 
     pub fn online_device_count(&self) -> u8 {
@@ -229,14 +346,42 @@ impl FireboardWatcher {
             .unwrap();
     }
 
+    /// Publish discovery configs for anything new or changed on this device. Nothing is
+    /// re-sent on an ordinary poll.
     async fn update_discovery(&mut self, device: &FireboardApiDevice) {
         let hardware_id = device.hardware_id.clone();
-        let connections = if let Some(device_log) = &device.device_log {
-            Some(vec![["mac".to_string(), device_log.mac_nic.clone()]])
-        } else {
-            None
-        };
-        let parent_device = Some(MQTTDiscoveryDevice {
+        let parent_device = Self::build_parent_device(device);
+
+        let state = self.discovery.entry(hardware_id.clone()).or_default();
+        let publish_device_level = !state.device_level_published;
+        let channels_to_publish: Vec<FireboardDeviceChannel> = state
+            .channels_to_publish(device)
+            .into_iter()
+            .cloned()
+            .collect();
+
+        if publish_device_level {
+            self.publish_device_level_discovery(device, &parent_device)
+                .await;
+        }
+        for channel in &channels_to_publish {
+            self.publish_channel_discovery(device, channel, &parent_device)
+                .await;
+        }
+
+        let state = self.discovery.entry(hardware_id).or_default();
+        state.device_level_published = true;
+        for channel in &channels_to_publish {
+            state.mark_channel_published(device, channel);
+        }
+    }
+
+    fn build_parent_device(device: &FireboardApiDevice) -> Option<MQTTDiscoveryDevice> {
+        let connections = device
+            .device_log
+            .as_ref()
+            .map(|device_log| vec![["mac".to_string(), device_log.mac_nic.clone()]]);
+        Some(MQTTDiscoveryDevice {
             configuration_url: Some(
                 format!("https://fireboard.io/devices/{}/edit/", device.id).to_string(),
             ),
@@ -252,7 +397,78 @@ impl FireboardWatcher {
             serial_number: Some(device.hardware_id.clone()),
             sw_version: Some(device.version.clone()),
             ..MQTTDiscoveryDevice::default()
-        });
+        })
+    }
+
+    /// The discovery config for one channel. Kept separate so tests can check its shape.
+    fn channel_discovery_sensor(
+        &self,
+        device: &FireboardApiDevice,
+        channel: &FireboardDeviceChannel,
+        parent_device: &Option<MQTTDiscoveryDevice>,
+    ) -> MQTTDiscoverySensor {
+        let hardware_id = &device.hardware_id;
+        let channel_id = format!("{}_channel_{}", hardware_id, channel.channel);
+        let channel_topic = self.get_topic_device_channel(hardware_id, &channel.channel);
+
+        MQTTDiscoverySensor {
+            unique_id: channel_id.clone(),
+            default_entity_id: format!("sensor.{}", channel_id),
+            name: Some(channel.channel_label.clone()),
+            availability: vec![
+                MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_availablility(hardware_id),
+                ),
+                MQTTDiscoveryAvailabilityEntry::from(
+                    self.get_topic_device_channel_availability(hardware_id, &channel.channel),
+                ),
+            ],
+            suggested_unit_of_measurement: Some("°F".to_string()),
+            device_class: Some("temperature".to_string()),
+            qos: 0,
+            icon: None,
+            state_topic: format!("{}/state", channel_topic),
+            unit_of_measurement: Some(device.degreetype.to_string()),
+            device: parent_device.clone(),
+            // TODO make this configurable?
+            expires_after: Some(600),
+            ..MQTTDiscoverySensor::default()
+        }
+    }
+
+    async fn publish_channel_discovery(
+        &self,
+        device: &FireboardApiDevice,
+        channel: &FireboardDeviceChannel,
+        parent_device: &Option<MQTTDiscoveryDevice>,
+    ) {
+        info!(
+            "publishing discovery for {} channel {} ({})",
+            device.hardware_id, channel.channel, channel.channel_label
+        );
+        let channel_discovery = self.channel_discovery_sensor(device, channel, parent_device);
+        self.tx
+            .send(MQTTAction::Publish {
+                topic: self
+                    .get_topic_device_channel_discovery(&device.hardware_id, &channel.channel),
+                qos: QoS::AtMostOnce,
+                retain: true,
+                payload: channel_discovery.into(),
+                props: None,
+            })
+            .await
+            .unwrap();
+    }
+
+    /// Battery and drive discovery configs. Published once per device per run.
+    async fn publish_device_level_discovery(
+        &self,
+        device: &FireboardApiDevice,
+        parent_device: &Option<MQTTDiscoveryDevice>,
+    ) {
+        let hardware_id = device.hardware_id.clone();
+        info!("publishing device discovery for {}", hardware_id);
 
         // set battery mqtt discovery
         let battery_id = format!("{}_battery", hardware_id);
@@ -284,48 +500,6 @@ impl FireboardWatcher {
             })
             .await
             .unwrap();
-
-        for channel in device.channels.clone() {
-            // set channel mqtt discovery
-            let channel_id = format!("{}_channel_{}", hardware_id, channel.channel);
-
-            let channel_topic = self.get_topic_device_channel(&hardware_id, &channel.channel);
-
-            let channel_discovery = MQTTDiscoverySensor {
-                unique_id: channel_id.clone(),
-                default_entity_id: format!("sensor.{}", channel_id),
-                name: Some(channel.channel_label),
-                availability: vec![
-                    MQTTDiscoveryAvailabilityEntry::from(self.get_topic_bridge_availablility()),
-                    MQTTDiscoveryAvailabilityEntry::from(
-                        self.get_topic_device_availablility(&hardware_id),
-                    ),
-                    MQTTDiscoveryAvailabilityEntry::from(
-                        self.get_topic_device_channel_availability(&hardware_id, &channel.channel),
-                    ),
-                ],
-                suggested_unit_of_measurement: Some("°F".to_string()),
-                device_class: Some("temperature".to_string()),
-                qos: 0,
-                icon: None,
-                state_topic: format!("{}/state", channel_topic),
-                unit_of_measurement: Some(device.degreetype.to_string()),
-                device: parent_device.clone(),
-                // TODO make this configurable?
-                expires_after: Some(600),
-                ..MQTTDiscoverySensor::default()
-            };
-            self.tx
-                .send(MQTTAction::Publish {
-                    topic: self.get_topic_device_channel_discovery(&hardware_id, &channel.channel),
-                    qos: QoS::AtMostOnce,
-                    retain: true,
-                    payload: channel_discovery.into(),
-                    props: None,
-                })
-                .await
-                .unwrap();
-        }
 
         // if drive_enabled {
         // set drive mqtt discovery
@@ -478,8 +652,88 @@ impl FireboardWatcher {
             .unwrap();
     }
 
+    /// Record every retained discovery config the broker has replayed to us since the last poll.
+    fn drain_inbound(&mut self) {
+        while let Ok(message) = self.rx_inbound.try_recv() {
+            if !message.retain || message.payload.is_empty() {
+                continue;
+            }
+            if let Some((hardware_id, channel)) =
+                parse_channel_config_topic(&self.cfg.mqtt_discovery_topic, &message.topic)
+            {
+                trace!(
+                    "broker holds retained discovery for {} channel {}",
+                    hardware_id,
+                    channel
+                );
+                self.discovery
+                    .entry(hardware_id)
+                    .or_default()
+                    .retained_in_broker
+                    .insert(channel);
+            }
+        }
+    }
+
+    /// Ask the broker to replay this device's retained discovery configs (once per run).
+    async fn ensure_subscribed(&mut self, hardware_id: &String) {
+        let state = self.discovery.entry(hardware_id.clone()).or_default();
+        if state.subscribed {
+            return;
+        }
+        state.subscribed = true;
+        // `+` has to be a whole topic level, so `channel_+` is not expressible; the parser
+        // filters out the battery and drive configs this also matches.
+        let topic = format!("{}/+/config", self.get_discovery_sensor_base_topic(hardware_id));
+        debug!("subscribing to {} to find stale discovery configs", topic);
+        self.tx
+            .send(MQTTAction::Subscribe {
+                topic,
+                qos: QoS::AtLeastOnce,
+                props: None,
+            })
+            .await
+            .unwrap();
+    }
+
+    /// Delete retained discovery configs for channels this device does not have.
+    async fn cleanup_stale_channels(&mut self, device: &FireboardApiDevice) {
+        let hardware_id = device.hardware_id.clone();
+        let stale = match self.discovery.get(&hardware_id) {
+            Some(state) => state.channels_to_clean(device),
+            None => return,
+        };
+        for channel in &stale {
+            info!(
+                "removing stale discovery config for {} channel {}",
+                hardware_id, channel
+            );
+            for topic in [
+                self.get_topic_device_channel_discovery(&hardware_id, channel),
+                self.get_topic_device_channel_availability(&hardware_id, channel),
+            ] {
+                self.tx
+                    .send(MQTTAction::Publish {
+                        topic,
+                        qos: QoS::AtLeastOnce,
+                        retain: true,
+                        payload: "".into(),
+                        props: None,
+                    })
+                    .await
+                    .unwrap();
+            }
+        }
+        if let Some(state) = self.discovery.get_mut(&hardware_id) {
+            for channel in &stale {
+                state.retained_in_broker.remove(channel);
+            }
+        }
+    }
+
     pub async fn update(&mut self) {
         info!("checking fireboard api for updates");
+        self.drain_inbound();
         let drive_enabled = self.cfg.fireboard_enable_drive;
         let result = self.fb_client.devices().list().await;
         if let Ok(returned_devices) = result {
@@ -490,7 +744,7 @@ impl FireboardWatcher {
                 serde_json::to_string_pretty(&returned_devices).unwrap()
             );
             #[cfg(not(feature = "pretty_print_json_logs"))]
-            trace!("devices fetched successfully: {:?}", &returned_devices);
+            trace!("devices fetched successfully: {:?}", returned_devices);
 
             self.online_device_count = 0;
 
@@ -498,6 +752,7 @@ impl FireboardWatcher {
                 let hardware_id = device.hardware_id.clone();
 
                 debug!("found device: {:?}", hardware_id);
+                self.ensure_subscribed(&hardware_id).await;
 
                 let latest_temps = device.latest_temps.clone();
                 let device_online = {
@@ -554,7 +809,7 @@ impl FireboardWatcher {
 
                 if device_online {
                     // do channel temperatures
-                    for channel in device.channels {
+                    for channel in device.live_channels() {
                         // let unique_id = format!("{}_{}", device.hardware_id.clone(), channel.channel);
                         let channel_topic =
                             self.get_topic_device_channel(&hardware_id, &channel.channel);
@@ -607,7 +862,7 @@ impl FireboardWatcher {
                     let rt_drivelog_request = self
                         .fb_client
                         .devices()
-                        .get_realtime_drivelog(device.uuid)
+                        .get_realtime_drivelog(device.uuid.clone())
                         .await;
                     if let Ok(rt_drivelog) = rt_drivelog_request {
                         if let Some(drivelog) = &rt_drivelog {
@@ -791,9 +1046,338 @@ impl FireboardWatcher {
                         .await
                         .unwrap();
                 }
+
+                self.cleanup_stale_channels(&device).await;
             }
         } else if let Err(err) = result {
             error!("Error fetching devices: {:?}", err);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fireboard_api::{DegreeType, FireboardTemps};
+
+    const FBX2D: &str = include_str!("../tests/fixtures/devices_fbx2d.json");
+
+    fn fixture() -> FireboardApiDevice {
+        let mut devices: Vec<FireboardApiDevice> = serde_json::from_str(FBX2D).unwrap();
+        devices.remove(0)
+    }
+
+    fn cfg(discovery_prefix: &str) -> Fb2MqttConfig {
+        Fb2MqttConfig {
+            fireboardaccount_email: "test@example.com".into(),
+            fireboardaccount_password: "secret".into(),
+            fireboard_enable_drive: false,
+            fireboard_api_device_online_update_interval_seconds: 30,
+            fireboard_api_device_offline_update_interval_seconds: 90,
+            mqtt_host: "localhost".into(),
+            mqtt_port: 1883,
+            mqtt_discovery_topic: discovery_prefix.into(),
+            mqtt_base_topic: "fireboard2mqtt".into(),
+            mqtt_credentials: None,
+            mqtt_clientid: "fireboard2mqtt".into(),
+        }
+    }
+
+    fn live_channel_numbers(device: &FireboardApiDevice) -> Vec<usize> {
+        device.live_channels().map(|c| c.channel).collect()
+    }
+
+    // --- topic parsing ---------------------------------------------------------------------
+
+    #[test]
+    fn channel_config_topic_round_trips_through_the_topic_builders() {
+        for prefix in ["homeassistant", "ha/discovery"] {
+            let (watcher, _rx) = FireboardWatcher::for_test(cfg(prefix));
+            for (hardware_id, channel) in [("GHK4F6CD2", 1usize), ("ABC123", 164)] {
+                let topic =
+                    watcher.get_topic_device_channel_discovery(&hardware_id.to_string(), &channel);
+                assert_eq!(
+                    parse_channel_config_topic(prefix, &topic),
+                    Some((hardware_id.to_string(), channel)),
+                    "{topic}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn non_channel_config_topics_are_ignored() {
+        let (watcher, _rx) = FireboardWatcher::for_test(cfg("homeassistant"));
+        let hardware_id = "GHK4F6CD2".to_string();
+        let rejected = [
+            watcher.get_topic_device_battery_discovery(&hardware_id),
+            watcher.get_topic_device_drive_discovery(&hardware_id),
+            watcher.get_topic_device_drive_lidpaused_discovery(&hardware_id),
+            watcher.get_topic_device_channel_availability(&hardware_id, &3),
+            "homeassistant/sensor/GHK4F6CD2/channel_x/config".to_string(),
+            "homeassistant/sensor/GHK4F6CD2/channel_3/config/extra".to_string(),
+            "homeassistant/sensor//channel_3/config".to_string(),
+            "other/sensor/GHK4F6CD2/channel_3/config".to_string(),
+            "zigbee2mqtt/sensor/GHK4F6CD2/channel_3/config".to_string(),
+        ];
+        for topic in rejected {
+            assert_eq!(parse_channel_config_topic("homeassistant", &topic), None, "{topic}");
+        }
+    }
+
+    // --- what to publish --------------------------------------------------------------------
+
+    #[test]
+    fn first_poll_publishes_every_live_channel_and_nothing_else() {
+        let device = fixture();
+        let state = DeviceDiscoveryState::default();
+        let to_publish: Vec<usize> = state
+            .channels_to_publish(&device)
+            .iter()
+            .map(|c| c.channel)
+            .collect();
+        assert_eq!(to_publish, vec![1, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn an_unchanged_poll_publishes_nothing() {
+        let device = fixture();
+        let mut state = DeviceDiscoveryState::default();
+        for channel in device.live_channels() {
+            state.mark_channel_published(&device, channel);
+        }
+        assert!(state.channels_to_publish(&device).is_empty());
+    }
+
+    #[test]
+    fn a_relabelled_channel_is_republished_alone() {
+        let mut device = fixture();
+        let mut state = DeviceDiscoveryState::default();
+        for channel in device.live_channels() {
+            state.mark_channel_published(&device, channel);
+        }
+        device.channels[2].channel_label = "Brisket".into(); // channel 2
+        let to_publish: Vec<usize> = state
+            .channels_to_publish(&device)
+            .iter()
+            .map(|c| c.channel)
+            .collect();
+        assert_eq!(to_publish, vec![2]);
+    }
+
+    #[test]
+    fn a_unit_change_republishes_all_live_channels() {
+        let mut device = fixture();
+        let mut state = DeviceDiscoveryState::default();
+        for channel in device.live_channels() {
+            state.mark_channel_published(&device, channel);
+        }
+        device.degreetype = DegreeType::Celcius;
+        let to_publish: Vec<usize> = state
+            .channels_to_publish(&device)
+            .iter()
+            .map(|c| c.channel)
+            .collect();
+        assert_eq!(to_publish, live_channel_numbers(&device));
+    }
+
+    // --- what to clean ----------------------------------------------------------------------
+
+    #[test]
+    fn retained_phantom_channels_are_cleaned() {
+        let device = fixture();
+        let mut state = DeviceDiscoveryState::default();
+        for channel in device.live_channels() {
+            state.mark_channel_published(&device, channel);
+        }
+        state.retained_in_broker = [0usize, 1, 2, 7, 10, 164].into_iter().collect();
+        assert_eq!(state.channels_to_clean(&device), vec![0, 7, 10, 164]);
+    }
+
+    #[test]
+    fn a_channel_seen_live_this_run_is_never_cleaned() {
+        let mut device = fixture();
+        let mut state = DeviceDiscoveryState::default();
+        for channel in device.live_channels() {
+            state.mark_channel_published(&device, channel);
+        }
+        // The API later stops flagging channel 4 as live (e.g. session ended).
+        device.channels[4].state = None; // channel 4
+        assert!(!device.channels[4].is_live());
+        state.retained_in_broker = [4usize, 7].into_iter().collect();
+        assert_eq!(state.channels_to_clean(&device), vec![7]);
+    }
+
+    #[test]
+    fn a_retained_live_channel_not_yet_published_is_kept() {
+        let device = fixture();
+        let state = DeviceDiscoveryState {
+            retained_in_broker: [3usize, 7].into_iter().collect(),
+            ..Default::default()
+        };
+        assert_eq!(state.channels_to_clean(&device), vec![7]);
+    }
+
+    #[test]
+    fn a_channel_with_a_reading_but_no_state_flag_is_kept() {
+        let mut device = fixture();
+        device.channels[7].last_templog = Some(FireboardTemps { temp: 225.0 }); // channel 7
+        let state = DeviceDiscoveryState {
+            retained_in_broker: [7usize, 8].into_iter().collect(),
+            ..Default::default()
+        };
+        assert_eq!(state.channels_to_clean(&device), vec![8]);
+        let to_publish: Vec<usize> = state
+            .channels_to_publish(&device)
+            .iter()
+            .map(|c| c.channel)
+            .collect();
+        assert_eq!(to_publish, vec![1, 2, 3, 4, 5, 6, 7]);
+    }
+
+    // --- discovery payload shape ------------------------------------------------------------
+
+    #[test]
+    fn channel_discovery_payload_keeps_the_existing_entity_identity() {
+        let (watcher, _rx) = FireboardWatcher::for_test(cfg("homeassistant"));
+        let device = fixture();
+        let channel = device.channels.iter().find(|c| c.channel == 2).unwrap();
+        let parent = FireboardWatcher::build_parent_device(&device);
+        let sensor = watcher.channel_discovery_sensor(&device, channel, &parent);
+
+        assert_eq!(sensor.unique_id, "GHK4F6CD2_channel_2");
+        assert_eq!(sensor.default_entity_id, "sensor.GHK4F6CD2_channel_2");
+        assert_eq!(sensor.name.as_deref(), Some("Breast"));
+        assert_eq!(sensor.state_topic, "fireboard2mqtt/GHK4F6CD2/channel_2/state");
+        assert_eq!(sensor.unit_of_measurement.as_deref(), Some("°F"));
+        assert_eq!(sensor.expires_after, Some(600));
+        let availability: Vec<&str> = sensor.availability.iter().map(|a| a.topic.as_str()).collect();
+        assert_eq!(
+            availability,
+            vec![
+                "fireboard2mqtt/bridge/availability",
+                "fireboard2mqtt/GHK4F6CD2/availability",
+                "fireboard2mqtt/GHK4F6CD2/channel_2/availability",
+            ]
+        );
+        let device_block = sensor.device.as_ref().unwrap();
+        assert_eq!(device_block.serial_number.as_deref(), Some("GHK4F6CD2"));
+        assert_eq!(device_block.model.as_deref(), Some("FBX2D"));
+
+        let json: serde_json::Value = serde_json::from_slice(&bytes::Bytes::from(sensor)).unwrap();
+        assert_eq!(json["default_entity_id"], "sensor.GHK4F6CD2_channel_2");
+        assert_eq!(json["unique_id"], "GHK4F6CD2_channel_2");
+    }
+
+    // --- end to end through the watcher (no broker, no API) --------------------------------
+
+    fn drain(rx: &mut Receiver<MQTTAction>) -> Vec<MQTTAction> {
+        let mut actions = vec![];
+        while let Ok(action) = rx.try_recv() {
+            actions.push(action);
+        }
+        actions
+    }
+
+    fn published_topics(actions: &[MQTTAction]) -> Vec<String> {
+        actions
+            .iter()
+            .filter_map(|a| match a {
+                MQTTAction::Publish { topic, .. } => Some(topic.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn discovery_goes_out_once_per_run() {
+        let (mut watcher, mut rx) = FireboardWatcher::for_test(cfg("homeassistant"));
+        let device = fixture();
+
+        watcher.update_discovery(&device).await;
+        let first = drain(&mut rx);
+        let topics = published_topics(&first);
+        // battery + drive + drive mode + drive setpoint + drive lid paused, then six channels
+        assert_eq!(topics.len(), 5 + 6, "{topics:?}");
+        for channel in 1..=6 {
+            assert!(topics.contains(&format!(
+                "homeassistant/sensor/GHK4F6CD2/channel_{channel}/config"
+            )));
+        }
+        assert!(!topics.iter().any(|t| t.contains("channel_0/") || t.contains("channel_164/")));
+        for action in &first {
+            if let MQTTAction::Publish { retain, payload, .. } = action {
+                assert!(*retain);
+                assert!(!payload.is_empty());
+            }
+        }
+
+        watcher.update_discovery(&device).await;
+        assert!(drain(&mut rx).is_empty(), "second poll must not re-send discovery");
+    }
+
+    #[tokio::test]
+    async fn stale_retained_configs_are_blanked_after_discovery() {
+        let (mut watcher, mut rx) = FireboardWatcher::for_test(cfg("homeassistant"));
+        let device = fixture();
+        let hardware_id = device.hardware_id.clone();
+
+        // Simulate the broker replaying its retained configs on subscribe.
+        for channel in [0usize, 1, 2, 3, 4, 5, 6, 7, 164] {
+            watcher
+                .discovery
+                .entry(hardware_id.clone())
+                .or_default()
+                .retained_in_broker
+                .insert(channel);
+        }
+        watcher.update_discovery(&device).await;
+        drain(&mut rx);
+
+        watcher.cleanup_stale_channels(&device).await;
+        let actions = drain(&mut rx);
+        let mut topics = published_topics(&actions);
+        topics.sort();
+        assert_eq!(
+            topics,
+            vec![
+                "fireboard2mqtt/GHK4F6CD2/channel_0/availability",
+                "fireboard2mqtt/GHK4F6CD2/channel_164/availability",
+                "fireboard2mqtt/GHK4F6CD2/channel_7/availability",
+                "homeassistant/sensor/GHK4F6CD2/channel_0/config",
+                "homeassistant/sensor/GHK4F6CD2/channel_164/config",
+                "homeassistant/sensor/GHK4F6CD2/channel_7/config",
+            ]
+        );
+        for action in &actions {
+            if let MQTTAction::Publish { retain, payload, .. } = action {
+                assert!(*retain, "deleting a retained topic needs the retain flag");
+                assert!(payload.is_empty(), "deleting a retained topic needs an empty payload");
+            }
+        }
+
+        // Cleaned channels are forgotten, so a second pass is a no-op.
+        watcher.cleanup_stale_channels(&device).await;
+        assert!(drain(&mut rx).is_empty());
+        let state = &watcher.discovery[&hardware_id];
+        let mut remaining: Vec<usize> = state.retained_in_broker.iter().copied().collect();
+        remaining.sort_unstable();
+        assert_eq!(remaining, vec![1, 2, 3, 4, 5, 6]);
+    }
+
+    #[tokio::test]
+    async fn subscription_is_requested_once_per_device() {
+        let (mut watcher, mut rx) = FireboardWatcher::for_test(cfg("homeassistant"));
+        let hardware_id = "GHK4F6CD2".to_string();
+        watcher.ensure_subscribed(&hardware_id).await;
+        watcher.ensure_subscribed(&hardware_id).await;
+        let actions = drain(&mut rx);
+        assert_eq!(actions.len(), 1);
+        match &actions[0] {
+            MQTTAction::Subscribe { topic, .. } => {
+                assert_eq!(topic, "homeassistant/sensor/GHK4F6CD2/+/config")
+            }
+            other => panic!("expected a subscribe, got {other:?}"),
         }
     }
 }

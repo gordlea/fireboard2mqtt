@@ -58,7 +58,32 @@ pub struct FireboardDeviceLog {
 pub struct FireboardDeviceChannel {
     pub channel: usize,
     pub channel_label: String,
+    /// `true` for a channel slot that belongs to the device's current session, `null` for the
+    /// stale slots the API keeps around from old sessions (an FBX2D returns ~165 of those).
+    #[serde(default)]
+    pub state: Option<bool>,
+    /// Present only while the device is online and the channel has a probe plugged in.
+    #[serde(default)]
     pub last_templog: Option<FireboardTemps>,
+}
+
+impl FireboardDeviceChannel {
+    /// Whether this channel is one the device actually has.
+    ///
+    /// The Fireboard API returns one record per channel slot it has ever allocated for the
+    /// device, not one per physical port, so most records are phantoms that never carry a
+    /// reading. A channel counts as live when the API flags it as part of the current session
+    /// (`state: true`) or when it has reported a temperature.
+    pub fn is_live(&self) -> bool {
+        self.state == Some(true) || self.last_templog.is_some()
+    }
+}
+
+impl FireboardApiDevice {
+    /// The channels worth exposing to Home Assistant; see [`FireboardDeviceChannel::is_live`].
+    pub fn live_channels(&self) -> impl Iterator<Item = &FireboardDeviceChannel> {
+        self.channels.iter().filter(|channel| channel.is_live())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
@@ -175,6 +200,15 @@ impl FireboardApiClient {
     pub fn devices(&self) -> DevicesEndpoint<'_> {
         DevicesEndpoint(self)
     }
+
+    /// A client that never talks to the API; lets tests build a watcher without credentials.
+    #[cfg(test)]
+    pub fn unauthenticated() -> FireboardApiClient {
+        FireboardApiClient {
+            api_base: Url::parse("https://fireboard.io/api/").unwrap(),
+            client: Arc::new(reqwest::Client::new()),
+        }
+    }
 }
 
 pub struct DevicesEndpoint<'c>(&'c FireboardApiClient);
@@ -246,5 +280,56 @@ impl<'c> DevicesEndpoint<'c> {
                 serde_json::from_str::<FireboardRealtimeDrivelog>(response_text.as_str())?;
             Ok(Some(json_output))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const FBX2D: &str = include_str!("../tests/fixtures/devices_fbx2d.json");
+
+    fn fixture() -> FireboardApiDevice {
+        let mut devices: Vec<FireboardApiDevice> = serde_json::from_str(FBX2D).expect("fixture parses");
+        assert_eq!(devices.len(), 1);
+        devices.remove(0)
+    }
+
+    #[test]
+    fn live_channels_are_the_current_session_ones() {
+        let device = fixture();
+        assert_eq!(device.channels.len(), 12, "fixture keeps a sample of the phantom slots");
+        let live: Vec<usize> = device.live_channels().map(|c| c.channel).collect();
+        assert_eq!(live, vec![1, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn phantom_slots_are_not_live_even_though_enabled() {
+        let device = fixture();
+        let phantom = device.channels.iter().find(|c| c.channel == 164).unwrap();
+        assert_eq!(phantom.state, None);
+        assert!(phantom.last_templog.is_none());
+        assert!(!phantom.is_live());
+        let null_slot = device.channels.iter().find(|c| c.channel == 0).unwrap();
+        assert!(!null_slot.is_live());
+    }
+
+    #[test]
+    fn a_reading_makes_a_channel_live_regardless_of_state() {
+        let channel = FireboardDeviceChannel {
+            channel: 9,
+            channel_label: "Probe".into(),
+            state: None,
+            last_templog: Some(FireboardTemps { temp: 72.5 }),
+        };
+        assert!(channel.is_live());
+    }
+
+    #[test]
+    fn missing_state_field_deserializes_as_none() {
+        let channel: FireboardDeviceChannel =
+            serde_json::from_str(r#"{"channel": 3, "channel_label": "Thigh"}"#).unwrap();
+        assert_eq!(channel.state, None);
+        assert!(!channel.is_live());
     }
 }

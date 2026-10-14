@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1](https://github.com/gordlea/fireboard2mqtt/compare/v3.2.0...v3.2.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* Fix extra channel entities ([#80](https://github.com/gordlea/fireboard2mqtt/issues/80)) ([a52cd8b](https://github.com/gordlea/fireboard2mqtt/commit/a52cd8bb4665f3c8c75baaa89f781217dc45ad7a))
+
 ## [3.2.0](https://github.com/gordlea/fireboard2mqtt/compare/v3.1.5...v3.2.0) (2026-01-05)
 
 

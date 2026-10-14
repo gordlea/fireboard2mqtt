@@ -1,0 +1,42 @@
+name: Fireboard 2 MQTT
+version: 3.2.1 # x-release-please-version
+stage: experimental
+slug: fireboard2mqtt
+url: https://github.com/gordlea/fireboard2mqtt
+services:
+  - mqtt:want
+hassio_role: default
+hassio_api: true  
+image: ghcr.io/gordlea/fireboard2mqtt-addon-{arch}
+description: >-
+  A bridge that connects the fireboard cloud api to mqtt (compatible with home assistant mqtt discovery)
+arch:
+  - amd64
+  - aarch64
+init: false
+host_network: false
+startup: application
+boot: auto
+options:
+  fireboardAccount_email: null
+  fireboardAccount_password: null
+  fireboard_enable_drive: false
+  logLevel: "fireboard2mqtt=warn"
+schema:
+  fireboardAccount_email: str
+  fireboardAccount_password: password
+  fireboard_enable_drive: bool
+  fireboard_api_update_interval_seconds: "int?"
+  fireboard_api_update_interval_seconds_when_offline: "int?"
+  override_mqtt_url: "str?"
+  mqtt_force_anonymous_credentials: "bool?"
+  override_mqtt_username: "str?"
+  override_mqtt_password: "password?"
+  mqtt_discovery_prefix: "str?"
+  mqtt_base_topic: "str?"
+  mqtt_clientid: "str?"
+  logLevel: "str"
+  rust_backtrace: "bool?"
+
+backup_exclude:
+  - "**/*"

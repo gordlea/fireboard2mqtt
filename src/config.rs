@@ -186,14 +186,10 @@ pub fn load_cfg_from_env() -> Fb2MqttConfig {
         mqtt_use_tls,
         mqtt_base_topic: cfg.mqtt_base_topic.to_string(),
         mqtt_discovery_topic: cfg.mqtt_discovery_topic.to_string(),
-        mqtt_credentials: if cfg.mqtt_username.is_none() {
-            None
-        } else {
-            Some(MqttCredentials {
-                username: cfg.mqtt_username.unwrap().to_string(),
-                password: cfg.mqtt_password.unwrap().to_string(),
-            })
-        },
+        mqtt_credentials: cfg.mqtt_username.map(|username| MqttCredentials {
+            username,
+            password: cfg.mqtt_password.unwrap_or_default(),
+        }),
         mqtt_clientid: cfg.mqtt_clientid.to_string(),
     }
 }

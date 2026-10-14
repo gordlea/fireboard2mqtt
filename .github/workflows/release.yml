@@ -1,0 +1,197 @@
+name: Release images
+
+# Runs when release-please publishes a GitHub release (merge of its release PR).
+# Builds natively per architecture, pushes to GHCR, then updates the add-on repository.
+#
+# `workflow_dispatch` is a dry run: images are pushed under the `edge` tag and the add-on
+# repository is left alone.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# No default token scopes; each job below declares exactly what it needs.
+permissions: {}
+
+env:
+  STANDALONE_IMAGE: ghcr.io/gordlea/fireboard2mqtt
+  ADDON_IMAGE_PREFIX: ghcr.io/gordlea/fireboard2mqtt-addon
+
+jobs:
+  version:
+    name: resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag='${{ github.event.release.tag_name }}'
+            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=edge" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: build ${{ matrix.arch }}
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Standalone: push by digest only; the `merge` job turns the two digests into one
+      # multi-arch manifest with the real tags.
+      - name: build standalone
+        id: standalone
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: standalone
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.STANDALONE_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ matrix.arch }},mode=max
+
+      - name: export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest='${{ steps.standalone.outputs.digest }}'
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+      # Add-on: one image per Home Assistant architecture name, tagged with the add-on version.
+      # A dry run (workflow_dispatch) only gets `edge`, never `latest`.
+      - id: addon_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ADDON_IMAGE_PREFIX }}-${{ matrix.arch }}
+          tags: |
+            type=raw,value=edge,enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=${{ needs.version.outputs.version }},enable=${{ github.event_name == 'release' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+
+      - name: build add-on
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: addon
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.addon_meta.outputs.tags }}
+          labels: ${{ steps.addon_meta.outputs.labels }}
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/${{ matrix.arch }}-base-debian:trixie
+            BUILD_ARCH=${{ matrix.arch }}
+            BUILD_VERSION=${{ needs.version.outputs.version }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ matrix.arch }},mode=max
+
+  merge:
+    name: publish standalone manifest
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.STANDALONE_IMAGE }}
+          tags: |
+            type=raw,value=edge,enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=semver,pattern={{version}},value=v${{ needs.version.outputs.version }},enable=${{ github.event_name == 'release' }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.version.outputs.version }},enable=${{ github.event_name == 'release' }}
+            type=semver,pattern={{major}},value=v${{ needs.version.outputs.version }},enable=${{ github.event_name == 'release' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+
+      - name: create manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.STANDALONE_IMAGE }}@sha256:%s ' *)
+
+      - name: inspect manifest
+        run: docker buildx imagetools inspect ${{ env.STANDALONE_IMAGE }}:${{ needs.version.outputs.version }}
+
+  sync-addon-repo:
+    name: update home-assistant-addons
+    if: github.event_name == 'release'
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+
+      - uses: actions/checkout@v4
+        with:
+          repository: gordlea/home-assistant-addons
+          token: ${{ secrets.RELEASE_PLEASE_GITHUB_TOKEN }}
+          path: addons
+
+      - name: copy add-on manifest files
+        run: |
+          cp src/addon/config.yaml src/addon/README.md src/addon/icon.png src/addon/logo.png src/addon/screenshot.png addons/fireboard2mqtt/
+          cp src/CHANGELOG.md addons/fireboard2mqtt/CHANGELOG.md
+
+      - name: commit and push
+        working-directory: addons
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fireboard2mqtt
+          if git diff --cached --quiet; then
+            echo "add-on repository already up to date"
+            exit 0
+          fi
+          git commit -m "chore(fireboard2mqtt): release ${{ needs.version.outputs.version }}"
+          git push

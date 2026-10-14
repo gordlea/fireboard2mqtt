@@ -13,12 +13,11 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: google-github-actions/release-please-action@v4
+      - uses: googleapis/release-please-action@v4
         with:
-          # this assumes that you have created a personal access token
-          # (PAT) and configured it as a GitHub action secret named
-          # `MY_RELEASE_PLEASE_TOKEN` (this secret name is not important).
+          # A PAT (not GITHUB_TOKEN) so that the release it publishes triggers release.yml.
           token: ${{ secrets.RELEASE_PLEASE_GITHUB_TOKEN }}
-          # this is a built-in strategy in release-please, see "Action Inputs"
-          # for more options
-          release-type: rust
+          # Package settings live in release-please-config.json / .release-please-manifest.json;
+          # that is what lets it bump addon/config.yaml alongside Cargo.toml.
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
