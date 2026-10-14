@@ -13,7 +13,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
           # A PAT (not GITHUB_TOKEN) so that the release it publishes triggers release.yml.
           token: ${{ secrets.RELEASE_PLEASE_GITHUB_TOKEN }}
