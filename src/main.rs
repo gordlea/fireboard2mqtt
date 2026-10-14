@@ -7,6 +7,7 @@ use env_logger::{Builder, Env};
 use human_bytes::human_bytes;
 use log::{debug, error, info, trace, warn};
 use memory_stats::memory_stats;
+use rumqttc::Transport;
 use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
 use std::process;
 use tokio::{
@@ -60,6 +61,10 @@ async fn main() {
             cfg.mqtt_host.clone(),
             cfg.mqtt_port,
         );
+        if cfg.mqtt_use_tls {
+            info!("mqtt broker url uses a tls scheme, connecting with TLS (using system root certificates)");
+            mqtt_options.set_transport(Transport::tls_with_default_config());
+        }
         if let Some(mqtt_credentials) = cfg.mqtt_credentials {
             mqtt_options.set_credentials(mqtt_credentials.username, mqtt_credentials.password);
         }
